@@ -62,22 +62,22 @@ class ExperimentalSetupGUI:
                     for i in range(self.num_output_channels):
                         if i < len(photon_placement) and photon_placement[i] == 1:
                             Fock(1) | q[i]
+                            print(f"fock state {i}")
                         else:
                             Vac | q[i]
+                            print(f"empty state {i}")
 
                     # Apply rotation gates
                     for i in range(min(len(angle_first_rotation_gates), len(q))):
                         Rgate(angle_first_rotation_gates[i]) | q[i]
 
-                    # Apply beamsplitter gates to create connectivity
-                    for i in range(len(q) - 1):
-                        if i < len(gate_values):
-                            gate_value = gate_values[i]
-                            BSgate(gate_value[0], gate_value[1]) | (q[i], q[i + 1])
-
-                    # Connect last mode to the first if needed
-                    if len(q) > 1 and len(gate_values) > len(q) - 1:
-                        BSgate(gate_values[-1][0], gate_values[-1][1]) | (q[-1], q[0])
+                    # Apply beamsplitter gates in m layers
+                    for layer in range(self.num_output_channels):
+                        start_index = layer % 2  # Alternate between starting at 0 and 1
+                        for i in range(start_index, len(q) - 1, 2):
+                            if len(gate_values) > 0:
+                                gate_value = gate_values.pop(0)
+                                BSgate(gate_value[0], gate_value[1]) | (q[i], q[i + 1])
 
                 # Run the engine
                 eng = sf.Engine(backend='fock', backend_options={'cutoff_dim': self.dim})

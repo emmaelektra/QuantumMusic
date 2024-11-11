@@ -18,11 +18,12 @@ black = (0, 0, 0)
 gray = (200, 200, 200)
 font = pygame.font.Font(None, 36)
 
-# Initialize your experimental setup
-exp_setup = ExperimentalSetupGUI(num_output_channels=4, num_photons=3)
+# Initialize your experimental setup with the number of channels (m)
+num_channels = 6  # Change this as needed for testing
+exp_setup = ExperimentalSetupGUI(num_output_channels=num_channels, num_photons=2)
 
 # Initial slider values for gate parameters
-num_gates = 8  # Adjust the number of gates as needed
+num_gates = num_channels * (num_channels - 1) // 2  # Corresponds to the logic for m layers
 gate_values_1 = [0] * num_gates  # First parameter for each gate
 gate_values_2 = [0] * num_gates  # Second parameter for each gate
 
@@ -42,7 +43,7 @@ def update_plot():
     gate_values = [(gate_values_1[i], gate_values_2[i]) for i in range(num_gates)]
 
     # Run the experiment and get probabilities and output states
-    probs, output_states = exp_setup.run_experiment([1, 0, 1, 1], gate_values=gate_values)
+    probs, output_states = exp_setup.run_experiment([1, 1, 0, 0, 0, 0], gate_values=gate_values)
     print("len probs = ", len(probs))
     # Check if there are valid probabilities and output states
     if len(probs) == 0 or len(output_states) == 0:
@@ -82,6 +83,10 @@ def update_plot():
 # Variable to track if fullscreen is active
 is_fullscreen = False
 
+# Variable to track which slider is being dragged (-1 means none)
+dragging_slider_1 = -1
+dragging_slider_2 = -1
+
 # Main loop
 running = True
 while running:
@@ -100,19 +105,24 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            # Detect which slider is clicked and update its value
+            # Check if a slider is clicked and start dragging it
             for i in range(num_gates):
                 if 50 <= event.pos[0] <= 350 and 50 + i * 70 - 10 <= event.pos[1] <= 50 + i * 70 + 10:
-                    gate_values_1[i] = (event.pos[0] - 50) / 300 * 2 * np.pi  # Match width of slider for param 1
+                    dragging_slider_1 = i  # Start dragging this slider for param 1
                 if 400 <= event.pos[0] <= 700 and 50 + i * 70 - 10 <= event.pos[1] <= 50 + i * 70 + 10:
-                    gate_values_2[i] = (event.pos[0] - 400) / 300 * 2 * np.pi  # Match width of slider for param 2
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_f:  # Press 'F' to toggle fullscreen
-                is_fullscreen = not is_fullscreen
-                if is_fullscreen:
-                    screen = pygame.display.set_mode((width, height), pygame.FULLSCREEN)
-                else:
-                    screen = pygame.display.set_mode((width, height))
+                    dragging_slider_2 = i  # Start dragging this slider for param 2
+        elif event.type == pygame.MOUSEBUTTONUP:
+            # Stop dragging when the mouse button is released
+            dragging_slider_1 = -1
+            dragging_slider_2 = -1
+        elif event.type == pygame.MOUSEMOTION:
+            # Update the slider value while dragging
+            if dragging_slider_1 != -1:
+                x = max(50, min(350, event.pos[0]))  # Keep the knob within the slider range
+                gate_values_1[dragging_slider_1] = (x - 50) / 300 * 2 * np.pi
+            if dragging_slider_2 != -1:
+                x = max(400, min(700, event.pos[0]))  # Keep the knob within the slider range
+                gate_values_2[dragging_slider_2] = (x - 400) / 300 * 2 * np.pi
 
     # Update and display the plot
     update_plot()
@@ -122,5 +132,6 @@ while running:
 
 # Quit pygame
 pygame.quit()
+
 
 
