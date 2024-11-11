@@ -8,7 +8,7 @@ from ExperimentalSetupGUI import ExperimentalSetupGUI
 pygame.init()
 
 # Set up the display with larger dimensions
-width, height = 3000, 1600  # Increase the dimensions as needed
+width, height = 1680, 1050  # Starting dimensions for windowed mode
 screen = pygame.display.set_mode((width, height))
 pygame.display.set_caption("Quantum Experiment GUI with Pygame")
 
@@ -19,7 +19,7 @@ gray = (200, 200, 200)
 font = pygame.font.Font(None, 36)
 
 # Initialize your experimental setup with the number of channels (m)
-num_channels = 4  # Change this as needed for testing
+num_channels = 6  # Change this as needed for testing
 exp_setup = ExperimentalSetupGUI(num_output_channels=num_channels, num_photons=2)
 
 # Initial slider values for gate parameters
@@ -43,7 +43,7 @@ def update_plot():
     gate_values = [(gate_values_1[i], gate_values_2[i]) for i in range(num_gates)]
 
     # Run the experiment and get probabilities and output states
-    probs, output_states = exp_setup.run_experiment([0, 0, 1, 1], gate_values=gate_values)
+    probs, output_states = exp_setup.run_experiment([0, 0, 1, 1, 0, 0], gate_values=gate_values)
     print("len probs = ", len(probs))
     # Check if there are valid probabilities and output states
     if len(probs) == 0 or len(output_states) == 0:
@@ -58,8 +58,11 @@ def update_plot():
     # Convert output states to strings for proper display
     output_states_str = [str(state) for state in output_states]
 
+    # Calculate plot size based on the screen width and height
+    plot_width, plot_height = int(width * 0.4), int(height * 0.4)
+
     # Create a plot
-    fig, ax = plt.subplots(figsize=(5.5, 4.5))  # Adjust figsize as needed
+    fig, ax = plt.subplots(figsize=(plot_width / 140, plot_height / 90))  # Scale figure size to screen size
     ax.bar(range(len(probs)), probs)
     ax.set_title("Probabilities of Output States")
     ax.set_xlabel("Output States")
@@ -67,7 +70,8 @@ def update_plot():
 
     # Set x-axis labels to the output states
     ax.set_xticks(range(len(output_states)))
-    ax.set_xticklabels(output_states_str, rotation='vertical', fontsize=7, ha='center')  # Rotate and align for better readability
+    ax.set_xticklabels(output_states_str, rotation='vertical', fontsize=7,
+                       ha='center')  # Rotate and align for better readability
 
     # Adjust plot layout to ensure labels are fully shown
     plt.tight_layout()
@@ -76,7 +80,7 @@ def update_plot():
     canvas = FigureCanvas(fig)
     canvas.draw()
     plot_surface = pygame.image.frombuffer(canvas.buffer_rgba().tobytes(), canvas.get_width_height(), "RGBA")
-    screen.blit(plot_surface, (700, 0))  # Adjust position to fit in the window
+    screen.blit(plot_surface, (width - plot_width - 310, 20))  # Position plot based on screen width
     plt.close(fig)
 
 
@@ -123,6 +127,15 @@ while running:
             if dragging_slider_2 != -1:
                 x = max(400, min(700, event.pos[0]))  # Keep the knob within the slider range
                 gate_values_2[dragging_slider_2] = (x - 400) / 300 * 2 * np.pi
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_f:  # Press 'F' to toggle fullscreen
+                is_fullscreen = not is_fullscreen
+                if is_fullscreen:
+                    screen = pygame.display.set_mode((width, height), pygame.FULLSCREEN)
+                    width, height = screen.get_size()  # Update width and height
+                else:
+                    screen = pygame.display.set_mode((1680, 1050))
+                    width, height = screen.get_size()  # Reset width and height
 
     # Update and display the plot
     update_plot()
@@ -132,6 +145,3 @@ while running:
 
 # Quit pygame
 pygame.quit()
-
-
-
