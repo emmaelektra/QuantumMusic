@@ -19,7 +19,7 @@ gray = (200, 200, 200)
 font = pygame.font.Font(None, 36)
 
 # Initialize your experimental setup with the number of channels (m)
-num_channels = 6  # Change this as needed for testing
+num_channels = 4  # Change this as needed for testing
 exp_setup = ExperimentalSetupGUI(num_output_channels=num_channels, num_photons=2)
 
 # Initial slider values for gate parameters
@@ -43,7 +43,7 @@ def update_plot():
     gate_values = [(gate_values_1[i], gate_values_2[i]) for i in range(num_gates)]
 
     # Run the experiment and get probabilities and output states
-    probs, output_states = exp_setup.run_experiment([1, 1, 0, 0, 0, 0], gate_values=gate_values)
+    probs, output_states = exp_setup.run_experiment([0, 0, 1, 1], gate_values=gate_values)
     print("len probs = ", len(probs))
     # Check if there are valid probabilities and output states
     if len(probs) == 0 or len(output_states) == 0:
