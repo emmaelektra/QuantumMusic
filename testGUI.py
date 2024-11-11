@@ -19,8 +19,9 @@ gray = (200, 200, 200)
 font = pygame.font.Font(None, 36)
 
 # Initialize your experimental setup with the number of channels (m)
-num_channels = 6  # Change this as needed for testing
-exp_setup = ExperimentalSetupGUI(num_output_channels=num_channels, num_photons=2)
+num_channels = 4  # Change this as needed for testing
+num_photons = 2
+exp_setup = ExperimentalSetupGUI(num_output_channels=num_channels, num_photons=num_photons)
 
 # Initial slider values for gate parameters
 num_gates = num_channels * (num_channels - 1) // 2  # Corresponds to the logic for m layers
@@ -43,7 +44,7 @@ def update_plot():
     gate_values = [(gate_values_1[i], gate_values_2[i]) for i in range(num_gates)]
 
     # Run the experiment and get probabilities and output states
-    probs, output_states = exp_setup.run_experiment([0, 0, 1, 1, 0, 0], gate_values=gate_values)
+    probs, output_states = exp_setup.run_experiment([0, 0, 1, 1], gate_values=gate_values)
     print("len probs = ", len(probs))
     # Check if there are valid probabilities and output states
     if len(probs) == 0 or len(output_states) == 0:
@@ -64,7 +65,7 @@ def update_plot():
     # Create a plot
     fig, ax = plt.subplots(figsize=(plot_width / 140, plot_height / 90))  # Scale figure size to screen size
     ax.bar(range(len(probs)), probs)
-    ax.set_title("Probabilities of Output States")
+    ax.set_title("Probabilities of Output States \n channels = %i, photons = %i" %(num_channels, num_photons))
     ax.set_xlabel("Output States")
     ax.set_ylabel("Probability")
 
@@ -98,11 +99,11 @@ while running:
 
     # Draw sliders for the first parameter of each gate
     for i, value in enumerate(gate_values_1):
-        draw_slider(50, 50 + i * 70, value, 2 * np.pi, f"Gate {i + 1} - Param 1")
+        draw_slider(50, 50 + i * 70, value, 2 * np.pi, f"Gate {i + 1} - theta")
 
     # Draw sliders for the second parameter of each gate
     for i, value in enumerate(gate_values_2):
-        draw_slider(400, 50 + i * 70, value, 2 * np.pi, f"Gate {i + 1} - Param 2")
+        draw_slider(400, 50 + i * 70, value, 2 * np.pi, f"Gate {i + 1} - phi")
 
     # Check for events
     for event in pygame.event.get():
