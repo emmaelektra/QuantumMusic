@@ -5,12 +5,19 @@ from strawberryfields.ops import *
 import itertools
 import random
 from collections import defaultdict
+import time
 
 
 class ExperimentalSetupGUIReal:
-    def __init__(self, num_output_channels, num_photons, dim=-1):
+    def __init__(self, num_output_channels, num_photons, dim=-1, efficiency=0.85, update_interval=3):
         self.num_output_channels = num_output_channels
         self.num_photons = num_photons
+        self.efficiency = efficiency  # Efficiency of the system
+        self.update_interval = update_interval  # Interval in seconds between experiments
+        self.last_run_time = time.time() - update_interval  # Initialize to allow immediate first run
+        self.cached_probabilities = []
+        self.cached_states = []
+        self.cached_measured_state = None
         if dim == -1:
             self.dim = num_photons + 1
         else:
@@ -18,12 +25,10 @@ class ExperimentalSetupGUIReal:
 
     def get_all_possible_output_states_configurations(self):
         states = []
-        # Iterate over possible numbers of lost photons (from 0 to num_photons)
         for lost_photons in range(self.num_photons + 1):
             remaining_photons = self.num_photons - lost_photons
-            # Generate all possible distributions of remaining photons across the output channels
             for partition in itertools.product(range(remaining_photons + 1), repeat=self.num_output_channels):
-                if sum(partition) == remaining_photons:  # Only include states with the correct total photon count
+                if sum(partition) == remaining_photons:
                     states.append(list(partition))
         return states
 
@@ -32,28 +37,55 @@ class ExperimentalSetupGUIReal:
         return tuple(min(1, photon_count) for photon_count in state)
 
     def get_probability_of_output_states_configurations(self, experimental_probabilities, states):
-        reduced_probabilities = defaultdict(float)  # To store summed probabilities for each reduced state
+        reduced_probabilities = defaultdict(float)
 
         for state in states:
             try:
-                # Compute the flat index for the current state
                 index = np.ravel_multi_index(state, (self.dim,) * self.num_output_channels)
                 probability = experimental_probabilities[index]
 
-                # Reduce the state to the indistinguishable form and accumulate probability
+                # Reduce state to indistinguishable form and accumulate probability
                 reduced_state = self.reduce_state(state)
                 reduced_probabilities[reduced_state] += probability
 
             except (IndexError, ValueError) as e:
                 print(f"Warning: State {state} - {e}")
 
-        # Convert the reduced probabilities dictionary to separate lists for states and probabilities
         final_states = list(reduced_probabilities.keys())
         final_probabilities = list(reduced_probabilities.values())
 
         return final_probabilities, final_states
 
+    def apply_efficiency(self, photon_placement):
+        """Apply the system efficiency by probabilistically removing photons from the placement."""
+        adjusted_photon_placement = []
+        for photon in photon_placement:
+            if photon == 1 and random.random() > self.efficiency:
+                adjusted_photon_placement.append(0)
+            else:
+                adjusted_photon_placement.append(photon)
+        return adjusted_photon_placement
+
+    def sample_state(self, probabilities, states):
+        """Sample a state based on the reduced probability distribution."""
+        if len(probabilities) > 0 and np.any(probabilities):
+            index = np.random.choice(len(states), p=probabilities)
+            return states[index]
+        return None
+
     def run_experiment(self, photon_placement, angle_first_rotation_gates=None, gate_values=None):
+        # Check if enough time has passed to run the experiment
+        current_time = time.time()
+        if current_time - self.last_run_time < self.update_interval:
+            # Return cached probabilities, states, and measured state without recalculating
+            return self.cached_probabilities, self.cached_states, self.cached_measured_state
+
+        # Update last run time
+        self.last_run_time = current_time
+
+        # Apply efficiency to initial photon placement
+        photon_placement = self.apply_efficiency(photon_placement)
+
         # Create a new Program instance for each run
         boson_sampling = sf.Program(self.num_output_channels)
 
@@ -67,7 +99,7 @@ class ExperimentalSetupGUIReal:
             gate_values = [(random.uniform(0, 2 * np.pi), random.uniform(0, 2 * np.pi))
                            for _ in range(calculate_number_of_gates(len(photon_placement)))]
 
-        print(f"photon_placement: {photon_placement}")
+        print(f"photon_placement (after efficiency): {photon_placement}")
         print(f"angle_first_rotation_gates: {angle_first_rotation_gates}")
         print(f"gate_values {gate_values}")
 
@@ -119,11 +151,19 @@ class ExperimentalSetupGUIReal:
         simulation_probabilities = simulate()
         if simulation_probabilities is None:
             print("Simulation failed or returned None. Returning placeholder values.")
-            return [], []  # Return empty lists instead of None to prevent unpacking issues
+            return [], [], None  # Return empty lists and None to indicate no measurement
 
-        # Call the function to get output state configurations
+        # Get all possible output state configurations
         output_states_configurations = self.get_all_possible_output_states_configurations()
         probabilities, final_states = self.get_probability_of_output_states_configurations(simulation_probabilities,
                                                                                            output_states_configurations)
 
-        return probabilities, final_states
+        # Sample a state from the probabilities for measurement
+        measured_state = self.sample_state(probabilities, final_states)
+
+        # Cache results
+        self.cached_probabilities = probabilities
+        self.cached_states = final_states
+        self.cached_measured_state = measured_state
+
+        return probabilities, final_states, measured_state
