@@ -22,6 +22,7 @@ font = pygame.font.Font(None, 36)
 # Initialize your experimental setup with the number of channels (m)
 num_channels = 4  # Change this as needed for testing
 num_photons = 3
+input_state = [1,1,1,0]
 exp_setup = ExperimentalSetupGUIReal(num_output_channels=num_channels, num_photons=num_photons)
 
 # Initial slider values for gate parameters
@@ -30,16 +31,13 @@ gate_values_1 = [0] * num_gates  # First parameter for each gate
 gate_values_2 = [0] * num_gates  # Second parameter for each gate
 
 # Sampling interval in seconds
-sampling_interval = 3
+sampling_interval = 5
 last_sample_time = time.time()
 # Initialize global variables for measured state and flash effect
 measured_state = None
 flash_alpha = 0  # Transparency level for flash effect (0 is fully transparent)
 fade_speed = 20  # How quickly the flash fades out (higher means faster fade)
 
-
-
-# Function to sample a state based on the probability distribution
 # Function to sample a state based on the probability distribution
 def sample_state(probs, states):
     if len(probs) > 0 and np.any(probs):  # Check if probs is non-empty and contains non-zero elements
@@ -63,7 +61,7 @@ def update_plot():
     gate_values = [(gate_values_1[i], gate_values_2[i]) for i in range(num_gates)]
 
     # Run the experiment and get probabilities and output states
-    probs, output_states = exp_setup.run_experiment([0, 1, 1, 1], gate_values=gate_values)
+    probs, output_states = exp_setup.run_experiment(input_state, gate_values=gate_values)
 
     # Normalize probabilities to sum to 1
     if sum(probs) > 0:

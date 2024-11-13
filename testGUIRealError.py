@@ -2,7 +2,7 @@ import pygame
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-from ExperimentalSetupGUI import ExperimentalSetupGUI
+from ExperimentalSetupGUIRealError import ExperimentalSetupGUIRealError
 import time
 
 # Initialize pygame
@@ -22,7 +22,7 @@ font = pygame.font.Font(None, 36)
 # Initialize your experimental setup with the number of channels (m)
 num_channels = 4  # Change this as needed for testing
 num_photons = 3
-exp_setup = ExperimentalSetupGUI(num_output_channels=num_channels, num_photons=num_photons)
+exp_setup = ExperimentalSetupGUIRealError(num_output_channels=num_channels, num_photons=num_photons)
 
 # Initial slider values for gate parameters
 num_gates = num_channels * (num_channels - 1) // 2  # Corresponds to the logic for m layers
@@ -30,12 +30,12 @@ gate_values_1 = [0] * num_gates  # First parameter for each gate
 gate_values_2 = [0] * num_gates  # Second parameter for each gate
 
 # Sampling interval in seconds
-sampling_interval = 3
+sampling_interval = 5
 last_sample_time = time.time()
 # Initialize global variables for measured state and flash effect
 measured_state = None
 flash_alpha = 0  # Transparency level for flash effect (0 is fully transparent)
-fade_speed = 30  # How quickly the flash fades out (higher means faster fade)
+fade_speed = 20  # How quickly the flash fades out (higher means faster fade)
 
 
 
@@ -56,26 +56,29 @@ def draw_slider(x, y, value, max_value, label):
 
 
 # Function to update and display the plot
+# Define `probs` and `output_states` as global variables to retain data between calls
+probs = []
+output_states = []
+
+# Function to update and display the plot
 def update_plot():
-    global last_sample_time, measured_state, flash_alpha
+    global last_sample_time, measured_state, flash_alpha, probs, output_states
 
     # Combine slider values into gate tuples
     gate_values = [(gate_values_1[i], gate_values_2[i]) for i in range(num_gates)]
 
-    # Run the experiment and get probabilities and output states
-    probs, output_states = exp_setup.run_experiment([0, 1, 1, 1], gate_values=gate_values)
-
-    # Normalize probabilities to sum to 1
-    if sum(probs) > 0:
-        probs = np.array(probs) / sum(probs)
-
-    # Sample a state every 3 seconds
+    # Check if it's time to send in photons and make a measurement
     if time.time() - last_sample_time >= sampling_interval:
-        state_index = sample_state(probs, output_states)
-        if state_index is not None:
-            measured_state = output_states[state_index]  # Get the sampled state
-            flash_alpha = 255  # Set flash effect to fully opaque on new measurement
-        last_sample_time = time.time()
+        # Run the experiment and get probabilities, output states, and measured state
+        probs, output_states, measured_state = exp_setup.run_experiment([0, 1, 1, 1], gate_values=gate_values)
+        last_sample_time = time.time()  # Update the time for the last sample
+
+        # Normalize probabilities to sum to 1
+        if sum(probs) > 0:
+            probs = np.array(probs) / sum(probs)
+
+        # Reset flash effect on new measurement
+        flash_alpha = 255  # Set flash effect to fully opaque on new measurement
 
     # Check if there are valid probabilities and output states
     if len(probs) == 0 or len(output_states) == 0:
@@ -102,8 +105,7 @@ def update_plot():
 
     # Set x-axis labels to the output states
     ax.set_xticks(range(len(output_states)))
-    ax.set_xticklabels(output_states_str, rotation='vertical', fontsize=7,
-                       ha='center')  # Rotate and align for better readability
+    ax.set_xticklabels(output_states_str, rotation='vertical', fontsize=7, ha='center')
 
     # Adjust plot layout to ensure labels are fully shown
     plt.tight_layout()
@@ -131,9 +133,7 @@ def update_plot():
             pygame.draw.circle(flash_surface, (255, 0, 0, flash_alpha), (15, 15), 10)  # Draw circle in the center
             screen.blit(flash_surface, (flash_x, flash_y))  # Position next to text
 
-            flash_alpha = max(0, flash_alpha - fade_speed)  # Decrease alpha to create fade-out effect
-
-
+            flash_alpha = max(0, flash_alpha - fade_speed)  # Gradually decrease alpha to create fade-out effect
 
 # Variable to track if fullscreen is active
 is_fullscreen = False

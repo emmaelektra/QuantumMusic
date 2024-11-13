@@ -2,8 +2,9 @@ import pygame
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-from ExperimentalSetupGUI import ExperimentalSetupGUI
+from ExperimentalSetupGUIRealError import ExperimentalSetupGUIRealError
 import time
+from collections import defaultdict
 
 # Initialize pygame
 pygame.init()
@@ -22,7 +23,8 @@ font = pygame.font.Font(None, 36)
 # Initialize your experimental setup with the number of channels (m)
 num_channels = 4  # Change this as needed for testing
 num_photons = 3
-exp_setup = ExperimentalSetupGUI(num_output_channels=num_channels, num_photons=num_photons)
+input_state = [1,0,1,1]
+exp_setup = ExperimentalSetupGUIRealError(num_output_channels=num_channels, num_photons=num_photons)
 
 # Initial slider values for gate parameters
 num_gates = num_channels * (num_channels - 1) // 2  # Corresponds to the logic for m layers
@@ -32,14 +34,21 @@ gate_values_2 = [0] * num_gates  # Second parameter for each gate
 # Sampling interval in seconds
 sampling_interval = 3
 last_sample_time = time.time()
-# Initialize global variables for measured state and flash effect
+# Initialize global variables for measured state, flash effect, and state counts
 measured_state = None
 flash_alpha = 0  # Transparency level for flash effect (0 is fully transparent)
-fade_speed = 30  # How quickly the flash fades out (higher means faster fade)
+fade_speed = 20  # How quickly the flash fades out (higher means faster fade)
+state_counts = defaultdict(int)  # Dictionary to hold counts of each state
 
+# Run the engine once at the beginning to get all potential states
+initial_probs, initial_output_states, _ = exp_setup.run_experiment(input_state, gate_values=[(0, 0)] * num_gates)
 
+# Initialize state_counts with zero for each potential state
+output_states = [str(state) for state in initial_output_states]  # Convert states to strings for x-axis labels
+for state in output_states:
+    state_counts[state] = 0  # Initialize each state with a count of zero
+probs = initial_probs  # Store initial probabilities for the smaller plot
 
-# Function to sample a state based on the probability distribution
 # Function to sample a state based on the probability distribution
 def sample_state(probs, states):
     if len(probs) > 0 and np.any(probs):  # Check if probs is non-empty and contains non-zero elements
@@ -54,56 +63,44 @@ def draw_slider(x, y, value, max_value, label):
     label_surface = font.render(f"{label}: {value:.2f}", True, black)
     screen.blit(label_surface, (x, y - 25))
 
-
 # Function to update and display the plot
 def update_plot():
-    global last_sample_time, measured_state, flash_alpha
+    global last_sample_time, measured_state, flash_alpha, state_counts, probs
 
     # Combine slider values into gate tuples
     gate_values = [(gate_values_1[i], gate_values_2[i]) for i in range(num_gates)]
+    probs, output_states_raw, measured_state = exp_setup.run_experiment(input_state, gate_values=gate_values)
 
-    # Run the experiment and get probabilities and output states
-    probs, output_states = exp_setup.run_experiment([0, 1, 1, 1], gate_values=gate_values)
-
-    # Normalize probabilities to sum to 1
-    if sum(probs) > 0:
-        probs = np.array(probs) / sum(probs)
-
-    # Sample a state every 3 seconds
+    # Check if it's time to send in photons and make a measurement
     if time.time() - last_sample_time >= sampling_interval:
-        state_index = sample_state(probs, output_states)
+
+        # Sample a state based on the current probabilities
+        state_index = sample_state(probs, output_states_raw)
         if state_index is not None:
-            measured_state = output_states[state_index]  # Get the sampled state
-            flash_alpha = 255  # Set flash effect to fully opaque on new measurement
-        last_sample_time = time.time()
+            sampled_state = str(output_states_raw[state_index])  # Convert the measured state to a string
+            state_counts[sampled_state] += 1  # Increment the count for this state
 
-    # Check if there are valid probabilities and output states
-    if len(probs) == 0 or len(output_states) == 0:
-        print("No valid data to plot.")
-        return
+            last_sample_time = time.time()  # Update the time for the last sample
 
-    # Ensure that the number of probabilities matches the number of output states
-    if len(probs) != len(output_states):
-        print(f"Warning: Mismatch in length. Trimming probabilities from {len(probs)} to {len(output_states)}.")
-        probs = probs[:len(output_states)]
+        # Reset flash effect on new measurement
+        flash_alpha = 255  # Set flash effect to fully opaque on new measurement
 
-    # Convert output states to strings for proper display
-    output_states_str = [str(state) for state in output_states]
+    # Convert output states and counts to lists for plotting
+    counts = [state_counts[state] for state in output_states]  # Order counts based on initial output states
 
     # Calculate plot size based on the screen width and height
     plot_width, plot_height = int(width * 0.4), int(height * 0.4)
 
     # Create a plot
     fig, ax = plt.subplots(figsize=(plot_width / 140, plot_height / 90))  # Scale figure size to screen size
-    ax.bar(range(len(probs)), probs)
-    ax.set_title("Probabilities of Output States \n channels = %i, photons = %i" % (num_channels, num_photons))
+    ax.bar(range(len(counts)), counts, color='blue')
+    ax.set_title("Measurement Counts Over Time \n channels = %i, photons = %i" % (num_channels, num_photons))
     ax.set_xlabel("Output States")
-    ax.set_ylabel("Probability")
+    ax.set_ylabel("Count")
 
     # Set x-axis labels to the output states
     ax.set_xticks(range(len(output_states)))
-    ax.set_xticklabels(output_states_str, rotation='vertical', fontsize=7,
-                       ha='center')  # Rotate and align for better readability
+    ax.set_xticklabels(output_states, rotation='vertical', fontsize=7, ha='center')
 
     # Adjust plot layout to ensure labels are fully shown
     plt.tight_layout()
@@ -113,6 +110,25 @@ def update_plot():
     canvas.draw()
     plot_surface = pygame.image.frombuffer(canvas.buffer_rgba().tobytes(), canvas.get_width_height(), "RGBA")
     screen.blit(plot_surface, (width - plot_width - 310, 20))  # Position plot based on screen width
+    plt.close(fig)
+
+    # Create a smaller probability plot
+    small_plot_width, small_plot_height = int(width * 0.2), int(height * 0.2)
+    fig, ax = plt.subplots(figsize=(small_plot_width / 140, small_plot_height / 90))  # Scale figure size to screen size
+    ax.bar(range(len(probs)), probs, color='green')
+    ax.set_ylim(0, 1)
+    ax.set_title("Probability Distribution", fontsize=10)
+
+    # Set x-axis labels to the output states
+    ax.set_xticks(range(len(output_states)))
+    ax.set_xticklabels(output_states, rotation='vertical', fontsize=5, ha='center')
+
+    # Render the probability plot onto the pygame surface
+    plt.tight_layout()
+    canvas = FigureCanvas(fig)
+    canvas.draw()
+    small_plot_surface = pygame.image.frombuffer(canvas.buffer_rgba().tobytes(), canvas.get_width_height(), "RGBA")
+    screen.blit(small_plot_surface, (70, height - small_plot_height - 300))  # Position bottom left
     plt.close(fig)
 
     # Draw the measured state on the Pygame screen
@@ -131,8 +147,7 @@ def update_plot():
             pygame.draw.circle(flash_surface, (255, 0, 0, flash_alpha), (15, 15), 10)  # Draw circle in the center
             screen.blit(flash_surface, (flash_x, flash_y))  # Position next to text
 
-            flash_alpha = max(0, flash_alpha - fade_speed)  # Decrease alpha to create fade-out effect
-
+            flash_alpha = max(0, flash_alpha - fade_speed)  # Gradually decrease alpha to create fade-out effect
 
 
 # Variable to track if fullscreen is active
