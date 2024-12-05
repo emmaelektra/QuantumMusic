@@ -50,6 +50,13 @@ for state in output_states:
     state_counts[state] = 0  # Initialize count to zero for each state
 probs = initial_probs  # Store initial probabilities for the smaller plot
 
+# Variable to track if fullscreen is active
+is_fullscreen = False
+
+# Variable to track which slider is being dragged (-1 means none)
+dragging_slider_1 = -1
+dragging_slider_2 = -1
+
 # Function to send histogram data to "sonify.py"
 def send_histogram_data(histogram_data, measured_state):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -80,36 +87,35 @@ def draw_slider(x, y, value, max_value, label):
     label_surface = font.render(f"{label}: {value:.2f}", True, black)
     screen.blit(label_surface, (x, y - 25))
 
-# Function to update and display the histogram plot and the probability plot
+# Function to update and display the plots
 def update_plots():
     global last_sample_time, measured_state, flash_alpha, state_counts, probs
 
     # Combine slider values into gate tuples
     gate_values = [(gate_values_1[i], gate_values_2[i]) for i in range(num_gates)]
 
-    # Run the experiment and get probabilities and output states
+    # Update probabilities in real-time
     probs, output_states_raw = exp_setup.run_experiment(input_state, gate_values=gate_values)
 
     # Check if it's time to make a measurement
     if time.time() - last_sample_time >= sampling_interval:
-
         # Sample a state based on the current probabilities
         state_index = sample_state(probs, output_states_raw)
         if state_index is not None:
             measured_state = str(output_states_raw[state_index])  # Convert to string
             state_counts[measured_state] += 1  # Increment the count for this state
 
-            last_sample_time = time.time()  # Update the time for the last sample
-
         # Reset flash effect on new measurement
         flash_alpha = 255  # Set flash effect to fully opaque on new measurement
 
+        # Send histogram and measured state data to "sonify.py"
+        counts = [state_counts[state] for state in output_states]  # Order counts based on initial states
+        send_histogram_data(histogram_data=counts, measured_state=measured_state)
+
+        last_sample_time = time.time()  # Update the time for the last sample
+
     # Convert state counts to a list for plotting
     counts = [state_counts[state] for state in output_states]  # Order counts based on initial states
-    print(counts)
-
-    # Send histogram and measured state data to `sonify.py`
-    send_histogram_data(histogram_data=counts, measured_state=measured_state)
 
     # Calculate plot size based on the screen width and height
     plot_width, plot_height = int(width * 0.4), int(height * 0.4)
@@ -170,15 +176,6 @@ def update_plots():
 
             flash_alpha = max(0, flash_alpha - fade_speed)  # Gradually decrease alpha to create fade-out effect
 
-    return counts
-
-# Variable to track if fullscreen is active
-is_fullscreen = False
-
-# Variable to track which slider is being dragged (-1 means none)
-dragging_slider_1 = -1
-dragging_slider_2 = -1
-
 # Main loop
 running = True
 while running:
@@ -228,11 +225,9 @@ while running:
     # Update and display the plots
     update_plots()
 
-    histogram_data = update_plots()  # Generate or update your histogram data
-    send_histogram_data(histogram_data, measured_state)
-
     # Update the display
     pygame.display.flip()
 
 # Quit pygame
 pygame.quit()
+
