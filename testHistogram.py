@@ -5,6 +5,8 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from ExperimentalSetupGUIReal import ExperimentalSetupGUIReal
 import time
 from collections import defaultdict
+import socket
+import json
 
 # Initialize pygame
 pygame.init()
@@ -22,8 +24,8 @@ font = pygame.font.Font(None, 36)
 
 # Initialize your experimental setup with the number of channels (m)
 num_channels = 4  # Adjust as needed
-num_photons = 2
-input_state = [1,0,1,0]
+num_photons = 3
+input_state = [1,1,1,0]
 exp_setup = ExperimentalSetupGUIReal(num_output_channels=num_channels, num_photons=num_photons)
 
 # Initial slider values for gate parameters
@@ -47,6 +49,22 @@ output_states = [str(state) for state in initial_output_states]
 for state in output_states:
     state_counts[state] = 0  # Initialize count to zero for each state
 probs = initial_probs  # Store initial probabilities for the smaller plot
+
+# Function to send histogram data to "sonify.py"
+def send_histogram_data(histogram_data, measured_state):
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    server_address = ("127.0.0.1", 9999)  # Match the IP and port in "sonify.py"
+
+    # Combine histogram data and measured state into a dictionary
+    data = {
+        "histogram_data": histogram_data,
+        "measured_state": measured_state
+    }
+
+    # Convert dictionary to JSON and send it
+    json_data = json.dumps(data)
+    client_socket.sendto(json_data.encode("utf-8"), server_address)
+
 
 # Function to sample a state based on probabilities
 def sample_state(probs, states):
@@ -88,6 +106,10 @@ def update_plots():
 
     # Convert state counts to a list for plotting
     counts = [state_counts[state] for state in output_states]  # Order counts based on initial states
+    print(counts)
+
+    # Send histogram and measured state data to `sonify.py`
+    send_histogram_data(histogram_data=counts, measured_state=measured_state)
 
     # Calculate plot size based on the screen width and height
     plot_width, plot_height = int(width * 0.4), int(height * 0.4)
@@ -148,6 +170,8 @@ def update_plots():
 
             flash_alpha = max(0, flash_alpha - fade_speed)  # Gradually decrease alpha to create fade-out effect
 
+    return counts
+
 # Variable to track if fullscreen is active
 is_fullscreen = False
 
@@ -203,6 +227,9 @@ while running:
 
     # Update and display the plots
     update_plots()
+
+    histogram_data = update_plots()  # Generate or update your histogram data
+    send_histogram_data(histogram_data, measured_state)
 
     # Update the display
     pygame.display.flip()
