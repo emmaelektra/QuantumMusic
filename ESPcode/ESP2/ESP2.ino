@@ -7,19 +7,18 @@
 #define LAPTOP_IP "192.168.4.2"  // Laptop's static IP
 
 // Static IP Configuration for ESP2
-IPAddress staticIP(192,168,4,4);
-IPAddress gateway(192,168,4,1);
-IPAddress subnet(255,255,255,0);
+IPAddress staticIP(192, 168, 4, 4);
+IPAddress gateway(192, 168, 4, 1);
+IPAddress subnet(255, 255, 255, 0);
 
-// ESP2 LED Configuration
-#define LED_PIN4 5
-#define LED_PIN3 26
-#define LED_PIN2 18
-#define LED_PIN1 33
-#define POT_PIN 34  // ESP2's own potentiometer
+#define LED_PIN1 5
+#define LED_PIN2 26
+#define LED_PIN3 18
+#define LED_PIN4 25
+#define POT_PIN 34
 
 #define NUM_LEDS1 200  
-#define NUM_LEDS2 200  
+#define NUM_LEDS2 200 
 #define NUM_LEDS3 100  
 #define NUM_LEDS4 400  
 
@@ -28,149 +27,128 @@ CRGB leds2[NUM_LEDS2];
 CRGB leds3[NUM_LEDS3];
 CRGB leds4[NUM_LEDS4];
 
-WiFiClient client;
-unsigned long lastPotChange = 0;
-unsigned long lastReceiveCheck = 0;
+uint8_t brightness1 = 0;
+uint8_t brightness2 = 0;
 uint8_t brightness3 = 0;
 uint8_t brightness4 = 0;
-
-// Store last potentiometer value
+bool entanglement = false;
 static int lastPotValue = -1;
-bool isFading = false;
 
-// Function to send potentiometer data to the laptop
-void sendDataToLaptop(int potValue) {
-    if (WiFi.status() == WL_CONNECTED) {
-        WiFiClient laptop;
-        if (laptop.connect(LAPTOP_IP, 80)) {  
-            StaticJsonDocument<200> doc;
-            doc["esp_id"] = 2;  // ESP2 Identifier
-            doc["pot_value"] = potValue;
-            String jsonString;
-            serializeJson(doc, jsonString);
-            laptop.println(jsonString);
-            laptop.stop();
-            Serial.println("[ESP2] Sent Potentiometer Value to Laptop.");
-        } else {
-            Serial.println("[ESP2] Failed to connect to Laptop.");
-        }
-    }
-}
+unsigned long lastUpdateTime = 0;  // Global variable to track last update
 
-// Function to request brightness updates
-void requestBrightness() {
-    if (WiFi.status() == WL_CONNECTED) {
-        WiFiClient clientReceive;
-        if (clientReceive.connect(LAPTOP_IP, 80)) {
-            clientReceive.println("{\"esp_id\": 2, \"request\": \"brightness\"}");
+WiFiClient laptopClient;
 
-            unsigned long startTime = millis();
-            while (!clientReceive.available() && millis() - startTime < 10) {
-                // Wait max 10ms for data
-            }
-
-            if (clientReceive.available()) {
-                String response = clientReceive.readStringUntil('\n');
-                StaticJsonDocument<200> doc;
-                DeserializationError error = deserializeJson(doc, response);
-
-                if (!error) {
-                    brightness3 = doc["brightness3"];
-                    brightness4 = doc["brightness4"];
-                    Serial.print("[ESP2] Received Brightness: ");
-                    Serial.print(brightness3);
-                    Serial.print(", ");
-                    Serial.println(brightness4);
-                } else {
-                    Serial.println("[ESP2] Failed to parse brightness data.");
-                }
-            } else {
-                Serial.println("[ESP2] No brightness data received.");
-            }
-            clientReceive.stop();
-        } else {
-            Serial.println("[ESP2] Failed to connect to laptop for brightness request.");
-        }
-    }
-}
-
-// Function to update LED brightness
 void updateLEDs() {
-    for (int i = 0; i < NUM_LEDS3; i++) {
-        leds3[i] = CRGB::Red;
-        leds3[i].nscale8(brightness3);
-    }
-    for (int i = 0; i < NUM_LEDS4; i++) {
-        leds4[i] = CRGB::Red;
-        leds4[i].nscale8(brightness4);
-    }
-    FastLED.show();
+  for (int i = 0; i < NUM_LEDS1; i++) {
+    leds1[i] = CRGB::Red;
+    leds1[i].nscale8(brightness1);
+  }
+  for (int i = 0; i < NUM_LEDS2; i++) {
+    leds2[i] = CRGB::Red;
+    leds2[i].nscale8(brightness2);
+  }
+  for (int i = 0; i < NUM_LEDS3; i++) {
+    leds3[i] = CRGB::Red;
+    leds3[i].nscale8(brightness3);
+  }
+  for (int i = 0; i < NUM_LEDS4; i++) {
+    leds4[i] = CRGB::Red;
+    leds4[i].nscale8(brightness4);
+  }
+  FastLED.show();
+}
+
+bool connectToLaptop() {
+  if (laptopClient.connected()) {
+    return true;
+  }
+  Serial.print("[ESP1] Connecting to laptop...");
+  if (laptopClient.connect(LAPTOP_IP, 80)) {
+    Serial.println("Connected.");
+    return true;
+  } else {
+    Serial.println("Connection failed.");
+    return false;
+  }
 }
 
 void setup() {
-    Serial.begin(115200);
-    
-    // Set static IP and connect to Wi-Fi
-    WiFi.config(staticIP, gateway, subnet);
-    WiFi.begin(SSID, PASSWORD);
-    
-    int timeout = 0;
-    while (WiFi.status() != WL_CONNECTED && timeout < 20) {  
-        delay(100);  // Reduced delay for faster connection attempt
-        timeout++;
-        Serial.print(".");
-    }
+  Serial.begin(115200);
+  
+  // Set static IP and connect to Wi-Fi
+  WiFi.config(staticIP, gateway, subnet);
+  WiFi.begin(SSID, PASSWORD);
+  int timeout = 0;
+  while (WiFi.status() != WL_CONNECTED && timeout < 20) {  
+    delay(100);
+    timeout++;
+    Serial.print(".");
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n[ESP1] Connected to Wi-Fi.");
+  } else {
+    Serial.println("\n[ESP1] Failed to connect to Wi-Fi.");
+  }
 
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("\n[ESP2] Connected to Wi-Fi. IP: " + WiFi.localIP().toString());
-    } else {
-        Serial.println("\n[ESP2] Failed to connect to Wi-Fi.");
-    }
-
-    FastLED.addLeds<WS2812B, LED_PIN1, GRB>(leds1, NUM_LEDS1);
-    FastLED.addLeds<WS2812B, LED_PIN2, GRB>(leds2, NUM_LEDS2);
-    FastLED.addLeds<WS2812B, LED_PIN3, GRB>(leds3, NUM_LEDS3);
-    FastLED.addLeds<WS2812B, LED_PIN4, GRB>(leds4, NUM_LEDS4);
+  // Initialize FastLED strips
+  FastLED.addLeds<WS2812B, LED_PIN1, GRB>(leds1, NUM_LEDS1);
+  FastLED.addLeds<WS2812B, LED_PIN2, GRB>(leds2, NUM_LEDS2);
+  FastLED.addLeds<WS2812B, LED_PIN3, GRB>(leds3, NUM_LEDS3);
+  FastLED.addLeds<WS2812B, LED_PIN4, GRB>(leds4, NUM_LEDS4);
 }
 
 void loop() {
-    unsigned long currentMillis = millis();
-
-    Serial.println("[ESP2] Loop Running...");
-
-    // **ESP2's Potentiometer Data**
+  // Maintain persistent connection to the laptop.
+  if (!connectToLaptop()) {
+    delay(1000);
+    return;
+  }
+  
+  // In your loop function:
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastUpdateTime >= 20) {
+    lastUpdateTime = currentMillis;
     int potValue = analogRead(POT_PIN);
-    Serial.print("[ESP2] Potentiometer Value: ");
-    Serial.println(potValue);
+    //Serial.print("[ESP1] Potentiometer value: ");
+    //Serial.println(potValue);
 
-    if (abs(potValue - lastPotValue) > 60) {  
-        lastPotChange = currentMillis;
-        lastPotValue = potValue;
-        isFading = false;
-
-        Serial.println("[ESP2] Sending Pot Value to Laptop...");
-        sendDataToLaptop(potValue);
+    StaticJsonDocument<200> doc;
+    doc["esp_id"] = 2;
+    doc["pot_value"] = potValue;
+    
+    String jsonString;
+    serializeJson(doc, jsonString);
+    jsonString += "\n";  // Terminate the message with newline
+    
+    laptopClient.print(jsonString);
+    //Serial.print("[ESP1] Sent pot update: ");
+    //Serial.println(jsonString);
+  }
+  
+  // Always check for incoming brightness data.
+  if (laptopClient.available()) {
+    String response = laptopClient.readStringUntil('\n');
+    StaticJsonDocument<200> respDoc;
+    DeserializationError error = deserializeJson(respDoc, response);
+    if (!error) {
+      brightness1 = respDoc["strip_1_bright"];
+      brightness2 = respDoc["strip_2_bright"];
+      brightness3 = respDoc["strip_3_bright"];
+      brightness4 = respDoc["strip_4_bright"];
+      entanglement = respDoc["Entanglement"];
+      //Serial.print("[ESP1] Updated brightness - Strip1: ");
+      //Serial.print(brightness1);
+      //Serial.print(", Strip2: ");
+      //Serial.println(brightness2);
+      Serial.print("[ESP1] Updated brightness - Strip3: ");
+      Serial.print(brightness3);
+      Serial.print(", Strip4: ");
+      Serial.println(brightness4);
+      updateLEDs();
+    } else {
+      //Serial.println("[ESP1] Failed to parse brightness JSON");
     }
-
-    // **Request Brightness Data Every 100ms**
-    if (currentMillis - lastReceiveCheck > 100) {
-        lastReceiveCheck = currentMillis;
-        Serial.println("[ESP2] Requesting Brightness...");
-        requestBrightness();
-    }
-
-    // **Update LED Brightness**
-    Serial.println("[ESP2] Updating LEDs...");
-    updateLEDs();
-
-    // **Fade Out LEDs After 10 Seconds**
-    if (currentMillis - lastPotChange > 10000 && !isFading) {
-        Serial.println("[ESP2] Fading Out LEDs...");
-        for (int i = 0; i < NUM_LEDS3; i++) leds3[i].fadeToBlackBy(5);
-        for (int i = 0; i < NUM_LEDS4; i++) leds4[i].fadeToBlackBy(5);
-        FastLED.show();
-        isFading = true;
-    }
-
-    delay(50);  // Small delay to prevent serial spam
+  }
+  
+  delay(10);
 }

@@ -17,6 +17,7 @@ class ESPLED:
         if self.id == 3:
             self.pot_value_ps_1 = pot_value_ps_1
         elif self.id == 4:
+            self.pot_value_ps_1 = pot_value_ps_1
             self.pot_value_ps_2 = pot_value_ps_2
         
         self.response_data = {}
@@ -31,8 +32,20 @@ class ESPLED:
             Entanglement = False
         # Calculate brightness
         if self.id == 3:
-            #self.pot_value_ps_1
-            pass
+            phaseVal1 = (self.pot_value_ps_1 / 4095) * 2 * math.pi
+            self.output_brightness_1 = int((input_brightness_1 / 77 * (
+                        self.pot_value / 4095) + input_brightness_2 / 77 * (self.pot_value / 4095)) * 77)
+            self.output_brightness_2 = int((input_brightness_1 / 77 * (
+                        77 - self.output_brightness_1) / 77 + input_brightness_2 / 77 * (
+                                                        77 - self.output_brightness_1) / 77) * 77)
+            self.response_data = {
+                "strip_1_bright": input_brightness_1,
+                "strip_2_bright": input_brightness_2,
+                "strip_3_bright": self.output_brightness_1,
+                "strip_4_bright": self.output_brightness_2,
+                "strip_2_phaseshift": phaseVal1,
+                "Entanglement": Entanglement
+            }
         elif self.id == 4:
             potVal1 = input_brightness_1/77
             potVal2 = (self.pot_value / 4095)

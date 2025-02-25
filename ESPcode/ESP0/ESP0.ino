@@ -1,4 +1,4 @@
-#include <ESP8266WiFi.h>
+#include <WiFi.h>
 
 #define SSID "BosonSamplerWiFi"
 #define PASSWORD "QuantumTech2025"
