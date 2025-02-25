@@ -60,8 +60,6 @@ void getDataFromLaptop() {
                 Serial.println(brightness3);
                 Serial.print(", Strip4: ");
                 Serial.println(brightness4);
-                // Update leds
-                updateLEDs();
             }
         }
         clientReceive.stop();
@@ -138,6 +136,9 @@ void loop() {
     
     // Listen for brightness updates from laptop
     getDataFromLaptop();
+
+    // Update leds
+    updateLEDs();
 
     // Send potentiometer data only when it changes significantly
     int potValue = analogRead(POT_PIN);
