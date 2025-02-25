@@ -1,11 +1,10 @@
-from ESP32Class import ESPLED
 import socket
 import json
 import threading
 import time
+from ESP32Class import ESPLED
 
 PORT = 80
-
 channel_1_brightness = 77
 channel_3_brightness = 77
 
@@ -63,13 +62,7 @@ def handle_client(client):
 
                 # ✅ Send response data back to the ESP
                 response_json = json.dumps(ESP.response_data)
-                try:
-                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                        sock.settimeout(0.01)  # Lower timeout to reduce lag
-                        sock.connect((ESP.ip, PORT))
-                        sock.sendall(response_json.encode())
-                except:
-                    pass  # Silently ignore connection failures
+                client.sendall(response_json.encode())
 
         except json.JSONDecodeError:
             print("❌ Invalid JSON received.")
@@ -90,15 +83,13 @@ def calculate_logic():
     while True:
         try:
             ESP1.get_output(channel_1_brightness, 0)
-            print("ESP brightness 1:", ESP1.output_brightness_1, "ESP brightness 2:", ESP1.output_brightness_2)
-            """
             ESP2.get_output(channel_3_brightness, 0)
             ESP3.get_output(ESP1.output_brightness_2, ESP2.output_brightness_1)
             ESP4.get_output(ESP1.output_brightness_1, ESP3.output_brightness_1)
             ESP5.get_output(ESP3.output_brightness_2, ESP2.output_brightness_2)
             ESP6.get_output(ESP4.output_brightness_2, ESP5.output_brightness_1)
-            """
-            time.sleep(0.05)  # Prevent excessive CPU usage
+
+            time.sleep(0.1)  # Prevent excessive CPU usage
         except Exception as e:
             print(f"❌ Error in logic calculation: {e}")
 
