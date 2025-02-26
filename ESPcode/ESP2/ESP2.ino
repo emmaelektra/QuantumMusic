@@ -1,6 +1,7 @@
 #include <WiFi.h>
 #include <ArduinoJson.h>
 #include <FastLED.h>
+#include <ArduinoOTA.h>
 
 #define SSID "BosonSamplerWiFi"
 #define PASSWORD "QuantumTech2025"
@@ -85,10 +86,12 @@ void setup() {
     Serial.print(".");
   }
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n[ESP1] Connected to Wi-Fi.");
+    Serial.println("\n[ESP2] Connected to Wi-Fi.");
   } else {
-    Serial.println("\n[ESP1] Failed to connect to Wi-Fi.");
+    Serial.println("\n[ESP2] Failed to connect to Wi-Fi.");
   }
+
+  ArduinoOTA.begin(); // begin the OTA for Over The Air ESP updates
 
   // Initialize FastLED strips
   FastLED.addLeds<WS2812B, LED_PIN1, GRB>(leds1, NUM_LEDS1);
@@ -98,6 +101,7 @@ void setup() {
 }
 
 void loop() {
+  ArduinoOTA.handle(); // handle OTA updates in the loop
   // Maintain persistent connection to the laptop.
   if (!connectToLaptop()) {
     delay(1000);
