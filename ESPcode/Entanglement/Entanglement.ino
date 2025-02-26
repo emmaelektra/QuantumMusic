@@ -18,9 +18,6 @@ IPAddress subnet(255, 255, 255, 0);
 #define LED_TYPE   WS2812
 #define COLOR_ORDER   GRB
 #define DATA_PIN        18
-//#define CLK_PIN       4
-#define VOLTS          5
-#define MAX_MA       4000
 
 CRGBArray<NUM_LEDS> leds;
 
@@ -73,7 +70,6 @@ void setup() {
   ArduinoOTA.begin(); // begin the OTA for Over The Air ESP updates
 
   delay(3000); // safety startup delay
-  FastLED.setMaxPowerInVoltsAndMilliamps(VOLTS, MAX_MA);
   FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS)
     .setCorrection(TypicalLEDStrip);
 }
