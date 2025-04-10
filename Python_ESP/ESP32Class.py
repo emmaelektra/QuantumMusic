@@ -26,10 +26,11 @@ class ESPLED:
     
     def get_output(self, input_brightness_1, input_brightness_2):
         # Check for entaglement
-        if 0.4 <= (self.pot_value / 4095) <= 0.6 and input_brightness_1 != 0 and input_brightness_2 != 0:
-            Entanglement = True
+        if 0.3 <= (self.pot_value / 4095) <= 0.7 and input_brightness_1 != 0 and input_brightness_2 != 0:
+            dif = abs(self.pot_value / 4095 - 0.5)
+            Entanglement = 2*(1 + round(dif * 45))
         else:
-            Entanglement = False
+            Entanglement = 0
         # Calculate brightness
         if self.id == 3:
             phaseVal1 = (self.pot_value_ps_1 / 4095) * 2 * math.pi
@@ -44,8 +45,9 @@ class ESPLED:
                 "strip_3_bright": self.output_brightness_1,
                 "strip_4_bright": self.output_brightness_2,
                 "strip_2_phaseshift": phaseVal1,
-                "Entanglement": Entanglement
+                "Entanglement": int(Entanglement)
             }
+            print(Entanglement)
         elif self.id == 4:
             potVal1 = input_brightness_1/77
             potVal2 = (self.pot_value / 4095)

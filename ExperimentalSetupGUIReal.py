@@ -62,9 +62,9 @@ class ExperimentalSetupGUIReal:
 
         # Generate random gate values if not provided
         if angle_first_rotation_gates is None:
-            angle_first_rotation_gates = [random.uniform(0, 2 * np.pi) for _ in range(len(photon_placement))]
+            angle_first_rotation_gates = [random.uniform(0, np.pi) for _ in range(len(photon_placement))]
         if gate_values is None:
-            gate_values = [(random.uniform(0, 2 * np.pi), random.uniform(0, 2 * np.pi))
+            gate_values = [(random.uniform(0, np.pi), random.uniform(0, np.pi))
                            for _ in range(calculate_number_of_gates(len(photon_placement)))]
 
         print(f"photon_placement: {photon_placement}")

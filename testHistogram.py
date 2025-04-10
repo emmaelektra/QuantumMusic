@@ -8,6 +8,25 @@ from collections import defaultdict
 import socket
 import json
 
+import matplotlib.font_manager as fm
+
+# Path to your Minion Pro font file
+minion_path = '/Users/emmasokoll/Library/Fonts/MinionPro-Regular.otf'
+
+# Add the font to Matplotlib’s font manager
+fm.fontManager.addfont(minion_path)
+
+# Create a FontProperties instance and print the font's name to verify
+minion_prop = fm.FontProperties(fname=minion_path)
+print("Font name:", minion_prop.get_name())  # Check the printed name
+
+# Use the exact name returned by get_name() in your rcParams
+plt.rcParams.update({
+    'font.family': minion_prop.get_name(),
+    'mathtext.fontset': 'custom',
+    'mathtext.rm': minion_prop.get_name(),
+})
+
 # Initialize pygame
 pygame.init()
 
@@ -20,7 +39,9 @@ pygame.display.set_caption("Quantum Experiment GUI with Histogram and Probabilit
 white = (255, 255, 255)
 black = (0, 0, 0)
 gray = (200, 200, 200)
-font = pygame.font.Font(None, 36)
+#font = pygame.font.Font(None, 36)
+font = pygame.font.Font('/Users/emmasokoll/Library/Fonts/MinionPro-Regular.otf', 36)
+
 
 # Initialize your experimental setup with the number of channels (m)
 num_channels = 4  # Adjust as needed
@@ -34,7 +55,7 @@ gate_values_1 = [0] * num_gates  # First parameter for each gate
 gate_values_2 = [0] * num_gates  # Second parameter for each gate
 
 # Sampling interval in seconds
-sampling_interval = 5
+sampling_interval = 2
 last_sample_time = time.time()
 
 # Global variables for measured state, flash effect, histogram data, and probabilities
@@ -83,8 +104,9 @@ def sample_state(probs, states):
 def draw_slider(x, y, value, max_value, label):
     pygame.draw.rect(screen, gray, (x, y, 300, 10))  # Increase width for visibility
     knob_x = x + (value / max_value) * 300  # Match width of slider
+    pi_val = value*2
     pygame.draw.circle(screen, black, (int(knob_x), y + 5), 8)
-    label_surface = font.render(f"{label}: {value:.2f}", True, black)
+    label_surface = font.render(f"{label}: {pi_val:.2f}", True, black)
     screen.blit(label_surface, (x, y - 25))
 
 # Function to update and display the plots
@@ -123,13 +145,13 @@ def update_plots():
     # Create histogram plot
     fig, ax = plt.subplots(figsize=(plot_width / 140, plot_height / 90))  # Scale figure size to screen size
     ax.bar(range(len(counts)), counts, color='blue')
-    ax.set_title("Measurement Counts Over Time \n channels = %i, photons = %i" % (num_channels, num_photons))
+    ax.set_title("Measurement Counts Over Time \n %i channels, %i photons, input state %s" % (num_channels, num_photons, input_state), fontsize = 15)
     ax.set_xlabel("Output States")
     ax.set_ylabel("Count")
 
     # Set x-axis labels to the output states
     ax.set_xticks(range(len(output_states)))
-    ax.set_xticklabels(output_states, rotation='vertical', fontsize=7, ha='center')
+    ax.set_xticklabels(output_states, rotation='vertical', fontsize=10, ha='center')
 
     # Render the histogram plot onto the pygame surface
     plt.tight_layout()
@@ -141,27 +163,27 @@ def update_plots():
 
     # Create a smaller probability plot
     small_plot_width, small_plot_height = int(width * 0.2), int(height * 0.2)
-    fig, ax = plt.subplots(figsize=(small_plot_width / 140, small_plot_height / 90))  # Scale figure size to screen size
+    fig, ax = plt.subplots(figsize=(small_plot_width / 100, small_plot_height / 70))  # Scale figure size to screen size
     ax.bar(range(len(probs)), probs, color='green')
     ax.set_ylim(0, 1)
-    ax.set_title("Probability Distribution", fontsize=10)
+    ax.set_title("Theoretical Probability Distribution", fontsize=15)
 
     # Set x-axis labels to the output states
     ax.set_xticks(range(len(output_states)))
-    ax.set_xticklabels(output_states, rotation='vertical', fontsize=5, ha='center')
+    ax.set_xticklabels(output_states, rotation='vertical', fontsize=10, ha='center')
 
     # Render the probability plot onto the pygame surface
     plt.tight_layout()
     canvas = FigureCanvas(fig)
     canvas.draw()
     small_plot_surface = pygame.image.frombuffer(canvas.buffer_rgba().tobytes(), canvas.get_width_height(), "RGBA")
-    screen.blit(small_plot_surface, (70, height - small_plot_height - 300))  # Position bottom left
+    screen.blit(small_plot_surface, (20, height - small_plot_height - 400))  # Position bottom left
     plt.close(fig)
 
     # Draw the measured state on the Pygame screen
     if measured_state is not None:
         state_text = font.render(f"Measured State: {measured_state}", True, black)
-        text_x, text_y = width - 420, 155  # Define text position
+        text_x, text_y = width - 650, 950  # Define text position
         screen.blit(state_text, (text_x, text_y))
 
         # Flash symbol as a circle next to the measured state text with fading effect
@@ -171,7 +193,7 @@ def update_plots():
 
             # Draw a circular flash symbol with current alpha level
             flash_surface = pygame.Surface((30, 30), pygame.SRCALPHA)  # 30x30 area for the circle
-            pygame.draw.circle(flash_surface, (255, 0, 0, flash_alpha), (15, 15), 10)  # Draw circle in the center
+            pygame.draw.circle(flash_surface, (255, 0, 0, flash_alpha), (15, 20), 10)  # Draw circle in the center
             screen.blit(flash_surface, (flash_x, flash_y))  # Position next to text
 
             flash_alpha = max(0, flash_alpha - fade_speed)  # Gradually decrease alpha to create fade-out effect
@@ -183,11 +205,11 @@ while running:
 
     # Draw sliders for the first parameter of each gate
     for i, value in enumerate(gate_values_1):
-        draw_slider(50, 50 + i * 70, value, 2 * np.pi, f"Gate {i + 1} - theta")
+        draw_slider(50, 50 + i * 70, value, np.pi/2, f"BS {i + 1}")
 
     # Draw sliders for the second parameter of each gate
     for i, value in enumerate(gate_values_2):
-        draw_slider(400, 50 + i * 70, value, 2 * np.pi, f"Gate {i + 1} - phi")
+        draw_slider(400, 50 + i * 70, value, np.pi/2, f"PS {i + 1}")
 
     # Check for events
     for event in pygame.event.get():
@@ -208,10 +230,10 @@ while running:
             # Update the slider value while dragging
             if dragging_slider_1 != -1:
                 x = max(50, min(350, event.pos[0]))  # Keep the knob within the slider range
-                gate_values_1[dragging_slider_1] = (x - 50) / 300 * 2 * np.pi
+                gate_values_1[dragging_slider_1] = (x - 50) / 300 * np.pi/2
             if dragging_slider_2 != -1:
                 x = max(400, min(700, event.pos[0]))  # Keep the knob within the slider range
-                gate_values_2[dragging_slider_2] = (x - 400) / 300 * 2 * np.pi
+                gate_values_2[dragging_slider_2] = (x - 400) / 300 * np.pi/2
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_f:  # Press 'F' to toggle fullscreen
                 is_fullscreen = not is_fullscreen

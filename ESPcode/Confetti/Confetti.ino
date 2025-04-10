@@ -48,7 +48,7 @@ uint8_t   thisinc = 1;                                        // Incremental val
 uint8_t   thissat = 100;                                      // The saturation, where 255 = brilliant colours.
 uint8_t   thisbri = 255;                                      // Brightness of a sequence. Remember, max_bright is the overall limiter.
 int       huediff = 10;                                      // Range of random #'s to use for hue
-uint8_t thisdelay = 30;                                        // We don't need much delay (if any)
+uint8_t thisdelay = 10;                                        // We don't need much delay (if any)
 
 
 void setup() {
@@ -82,7 +82,7 @@ void setup() {
 
 void loop () {
   ArduinoOTA.handle(); // handle OTA updates in the loop
-  ChangeMe();                                                 // Check the demo loop for changes to the variables.
+  //ChangeMe();                                                 // Check the demo loop for changes to the variables.
 
   EVERY_N_MILLISECONDS(thisdelay) {                           // FastLED based non-blocking delay to update/display the sequence.
     confetti();

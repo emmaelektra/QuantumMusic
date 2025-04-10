@@ -37,6 +37,10 @@ static int lastPotValue = -1;
 
 unsigned long lastUpdateTime = 0;  // Global variable to track last update
 
+//Entanglement parameters
+int thisfade = 1;
+
+
 WiFiClient laptopClient;
 
 void updateLEDs() {
@@ -45,9 +49,19 @@ void updateLEDs() {
     leds2[i] = CRGB::Red;
     leds2[i].nscale8(phasShiftbrightness2);
   }
-  for (int i = 0; i < NUM_LEDS3; i++) {
-    leds3[i] = CRGB::Red;
-    leds3[i].nscale8(brightness3);
+  if (entanglement != 0){
+    fadeToBlackBy(leds3, NUM_LEDS3, thisfade);  
+    for (int i = 0; i < entanglement; i++){
+      int pos = random16(NUM_LEDS3);     
+      leds3[pos] += CRGB::White;
+      leds3[pos].nscale8(brightness3);
+    }
+  } 
+  else {
+    for (int i = 0; i < NUM_LEDS3; i++) {
+      leds3[i] = CRGB::White;
+      leds3[i].nscale8(brightness3);
+    }
   }
   for (int i = 0; i < NUM_LEDS4; i++) {
     leds4[i] = CRGB::Red;
@@ -152,5 +166,5 @@ void loop() {
     }
   }
   
-  delay(10);
+  delay(25);
 }
