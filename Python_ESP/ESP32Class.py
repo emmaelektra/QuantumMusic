@@ -47,7 +47,6 @@ class ESPLED:
                 "strip_2_phaseshift": phaseVal1,
                 "Entanglement": int(Entanglement)
             }
-            print(Entanglement)
         elif self.id == 4:
             potVal1 = input_brightness_1/77
             potVal2 = (self.pot_value / 4095)

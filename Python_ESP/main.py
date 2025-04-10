@@ -83,12 +83,12 @@ def handle_client(client):
             except socket.timeout:
                 continue  # No data received in this interval; keep waiting.
             except Exception as e:
-                print(f"❌ Error: {e}")
+                print(f"❌ Error: {e} {esp_id}")
                 break
             # Prepare and send the brightness JSON response
             response_json = json.dumps(ESP.response_data) + "\n"
             client.sendall(response_json.encode())
-            time.sleep(0.0001)
+            time.sleep(0.001)
 
 
 def accept_connections():

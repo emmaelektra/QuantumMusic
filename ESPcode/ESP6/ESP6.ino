@@ -27,7 +27,10 @@ uint8_t brightness4 = 0;
 bool entanglement = false;
 static int lastPotValue = -1;
 
-unsigned long lastUpdateTime = 0;  // Global variable to track last update
+// Global variable to track last update
+unsigned long lastUpdateTimeOTA = 0;
+unsigned long lastUpdateTimePOT = 0;
+unsigned long lastUpdateTimeLED = 0;  
 
 WiFiClient laptopClient;
 
@@ -83,7 +86,11 @@ void setup() {
 }
 
 void loop() {
-  ArduinoOTA.handle(); // handle OTA updates in the loop
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastUpdateTimeOTA >= 1000) {
+    lastUpdateTimeOTA = currentMillis;
+    ArduinoOTA.handle(); // handle OTA updates in the loop
+  }
   // Maintain persistent connection to the laptop.
   if (!connectToLaptop()) {
     delay(1000);
@@ -91,9 +98,9 @@ void loop() {
   }
   
   // In your loop function:
-  unsigned long currentMillis = millis();
-  if (currentMillis - lastUpdateTime >= 20) {
-    lastUpdateTime = currentMillis;
+  
+  if (currentMillis - lastUpdateTimePOT >= 20) {
+    lastUpdateTimePOT = currentMillis;
     int potValue = analogRead(POT_PIN);
     //Serial.print("[ESP1] Potentiometer value: ");
     //Serial.println(potValue);
@@ -112,27 +119,26 @@ void loop() {
   }
   
   // Always check for incoming brightness data.
-  if (laptopClient.available()) {
-    String response = laptopClient.readStringUntil('\n');
-    StaticJsonDocument<200> respDoc;
-    DeserializationError error = deserializeJson(respDoc, response);
-    if (!error) {
-      brightness3 = respDoc["strip_3_bright"];
-      brightness4 = respDoc["strip_4_bright"];
-      entanglement = respDoc["Entanglement"];
-      //Serial.print("[ESP1] Updated brightness - Strip1: ");
-      //Serial.print(brightness1);
-      //Serial.print(", Strip2: ");
-      //Serial.println(brightness2);
-      //Serial.print("[ESP1] Updated brightness - Strip3: ");
-      //Serial.print(brightness3);
-      //Serial.print(", Strip4: ");
-      //Serial.println(brightness4);
-      updateLEDs();
-    } else {
-      //Serial.println("[ESP1] Failed to parse brightness JSON");
+  if (currentMillis - lastUpdateTimeLED >= 20) {
+    lastUpdateTimeLED = currentMillis;
+    if (laptopClient.available()) {
+      String response = laptopClient.readStringUntil('\n');
+      StaticJsonDocument<200> respDoc;
+      DeserializationError error = deserializeJson(respDoc, response);
+      if (!error) {
+        brightness3 = respDoc["strip_3_bright"];
+        brightness4 = respDoc["strip_4_bright"];
+        entanglement = respDoc["Entanglement"];
+        //Serial.print("[ESP1] Updated brightness - Strip1: ");
+        //Serial.print(brightness1);
+        //Serial.print(", Strip2: ");
+        //Serial.println(brightness2);
+        //Serial.print("[ESP1] Updated brightness - Strip3: ");
+        //Serial.print(brightness3);
+        //Serial.print(", Strip4: ");
+        //Serial.println(brightness4);
+        updateLEDs();
+      }
     }
   }
-  
-  delay(10);
 }

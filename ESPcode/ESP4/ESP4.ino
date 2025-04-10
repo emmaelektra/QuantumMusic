@@ -41,7 +41,10 @@ uint8_t phaseShift2 = 0;
 bool entanglement = false;
 static int lastPotValue = -1;
 
-unsigned long lastUpdateTime = 0;  // Global variable to track last update
+// Global variable to track last update
+unsigned long lastUpdateTimeOTA = 0;
+unsigned long lastUpdateTimePOT = 10;
+unsigned long lastUpdateTimeLED = 0;  
 
 WiFiClient laptopClient;
 
@@ -71,7 +74,7 @@ bool connectToLaptop() {
   if (laptopClient.connected()) {
     return true;
   }
-  Serial.print("[ESP3] Connecting to laptop...");
+  Serial.print("[ESP4] Connecting to laptop...");
   if (laptopClient.connect(LAPTOP_IP, 80)) {
     Serial.println("Connected.");
     return true;
@@ -94,9 +97,9 @@ void setup() {
     Serial.print(".");
   }
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n[ESP3] Connected to Wi-Fi.");
+    Serial.println("\n[ESP4] Connected to Wi-Fi.");
   } else {
-    Serial.println("\n[ESP3] Failed to connect to Wi-Fi.");
+    Serial.println("\n[ESP4] Failed to connect to Wi-Fi.");
   }
 
   ArduinoOTA.begin(); // begin the OTA for Over The Air ESP updates
@@ -109,7 +112,11 @@ void setup() {
 }
 
 void loop() {
-  ArduinoOTA.handle(); // handle OTA updates in the loop
+  //unsigned long currentMillis = millis();
+  if (millis() - lastUpdateTimeOTA >= 20) {
+    lastUpdateTimeOTA = millis();
+    ArduinoOTA.handle(); // handle OTA updates in the loop
+  }
   // Maintain persistent connection to the laptop.
   if (!connectToLaptop()) {
     delay(1000);
@@ -117,9 +124,8 @@ void loop() {
   }
   
   // In your loop function:
-  unsigned long currentMillis = millis();
-  if (currentMillis - lastUpdateTime >= 20) {
-    lastUpdateTime = currentMillis;
+  if (millis() - lastUpdateTimePOT >= 20) {
+    lastUpdateTimePOT = millis();
     int potValue = analogRead(POT_PIN);
     int phaseValue1 = analogRead(PHASE_POT_PIN_1);
     int phaseValue2 = analogRead(PHASE_POT_PIN_2);
@@ -142,31 +148,30 @@ void loop() {
   }
   
   // Always check for incoming brightness data.
-  if (laptopClient.available()) {
-    String response = laptopClient.readStringUntil('\n');
-    StaticJsonDocument<200> respDoc;
-    DeserializationError error = deserializeJson(respDoc, response);
-    if (!error) {
-      brightness1 = respDoc["strip_1_bright"];
-      brightness2 = respDoc["strip_2_bright"];
-      brightness3 = respDoc["strip_3_bright"];
-      brightness4 = respDoc["strip_4_bright"];
-      phaseShift1 = respDoc["strip_1_phaseshift"];
-      phaseShift2 = respDoc["strip_2_phaseshift"];
-      entanglement = respDoc["Entanglement"];
-      //Serial.print("[ESP1] Updated brightness - Strip1: ");
-      //Serial.print(brightness1);
-      //Serial.print(", Strip2: ");
-      //Serial.println(brightness2);
-      //Serial.print("[ESP1] Updated brightness - Strip3: ");
-      //Serial.print(brightness3);
-      //Serial.print(", Strip4: ");
-      //Serial.println(brightness4);
-      updateLEDs();
-    } else {
-      //Serial.println("[ESP1] Failed to parse brightness JSON");
+  if (millis() - lastUpdateTimeLED >= 20) {
+    lastUpdateTimeLED = millis();
+    if (laptopClient.available()) {
+      String response = laptopClient.readStringUntil('\n');
+      StaticJsonDocument<200> respDoc;
+      DeserializationError error = deserializeJson(respDoc, response);
+      if (!error) {
+        brightness1 = respDoc["strip_1_bright"];
+        brightness2 = respDoc["strip_2_bright"];
+        brightness3 = respDoc["strip_3_bright"];
+        brightness4 = respDoc["strip_4_bright"];
+        phaseShift1 = respDoc["strip_1_phaseshift"];
+        phaseShift2 = respDoc["strip_2_phaseshift"];
+        entanglement = respDoc["Entanglement"];
+        //Serial.print("[ESP1] Updated brightness - Strip1: ");
+        //Serial.print(brightness1);
+        //Serial.print(", Strip2: ");
+        //Serial.println(brightness2);
+        //Serial.print("[ESP1] Updated brightness - Strip3: ");
+        //Serial.print(brightness3);
+        //Serial.print(", Strip4: ");
+        //Serial.println(brightness4);
+        updateLEDs();
+      }
     }
   }
-  
-  delay(20);
 }
