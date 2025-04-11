@@ -38,7 +38,13 @@ uint8_t brightness3 = 0;
 uint8_t brightness4 = 0;
 uint8_t phaseShift1 = 0;
 uint8_t phaseShift2 = 0;
-bool entanglement = false;
+uint8_t entanglement1 = 0;
+uint8_t entanglement2  = 0;
+uint8_t pulse1 = 0;
+uint8_t pulse2 = 0;
+uint8_t strobe1 = 0;
+uint8_t strobe2 = 0;
+
 static int lastPotValue = -1;
 
 // Global variable to track last update
@@ -153,26 +159,43 @@ void loop() {
     lastUpdateTimeLED = millis();
     if (laptopClient.available()) {
       String response = laptopClient.readStringUntil('\n');
-      StaticJsonDocument<200> respDoc;
-      DeserializationError error = deserializeJson(respDoc, response);
-      if (!error) {
-        brightness1 = respDoc["strip_1_bright"];
-        brightness2 = respDoc["strip_2_bright"];
-        brightness3 = respDoc["strip_3_bright"];
-        brightness4 = respDoc["strip_4_bright"];
-        phaseShift1 = respDoc["strip_1_phaseshift"];
-        phaseShift2 = respDoc["strip_2_phaseshift"];
-        entanglement = respDoc["Entanglement"];
-        //Serial.print("[ESP1] Updated brightness - Strip1: ");
-        //Serial.print(brightness1);
-        //Serial.print(", Strip2: ");
-        //Serial.println(brightness2);
-        //Serial.print("[ESP1] Updated brightness - Strip3: ");
-        //Serial.print(brightness3);
-        //Serial.print(", Strip4: ");
-        //Serial.println(brightness4);
-        updateLEDs();
+
+      // Split CSV into tokens
+      int index = 0;
+      float values[12];  // Adjust if you add more fields
+
+      int lastComma = -1;
+      for (int i = 0; i < response.length(); i++) {
+        if (response[i] == ',' || i == response.length() - 1) {
+          int end = (response[i] == ',') ? i : i + 1;
+          String valueStr = response.substring(lastComma + 1, end);
+          valueStr.trim();
+          if (valueStr.length() > 0) {
+            values[index] = valueStr.toFloat();  // Parses to 0.0 if invalid
+          } else {
+            values[index] = NAN;  // Use NAN to indicate missing value
+          }
+          lastComma = i;
+          index++;
+          if (index >= 12) break;  // Safety check
+        }
       }
-    }
+
+      // Now assign to your variables
+      brightness1    = values[0];
+      brightness2    = values[1];
+      brightness3    = values[2];
+      brightness4    = values[3];
+      phaseShift1    = values[4];
+      phaseShift2    = values[5];
+      entanglement1  = values[6];
+      entanglement2  = values[7];
+      pulse1         = values[8];
+      pulse2         = values[9];
+      strobe1        = values[10];
+      strobe2        = values[11];
+      updateLEDs();
+      }
   }
 }
+

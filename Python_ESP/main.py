@@ -35,59 +35,51 @@ server.listen(10)  # Allow multiple connections
 server.setblocking(False)
 print("✅ Waiting for ESP connections...")
 
-
-def recv_full_message(client):
-    """Read data from client until a newline is encountered."""
-    buffer = ""
-    while True:
-        try:
-            data = client.recv(1024).decode()
-        except socket.timeout:
-            continue  # No data received yet, loop again
-        if not data:
-            break  # Connection closed
-        buffer += data
-        if "\n" in buffer:
-            # Split at newline; if multiple messages exist, take the first one.
-            message, buffer = buffer.split("\n", 1)
-            return message.strip()
-    return buffer.strip()
-
-
 def handle_client(client):
     client.settimeout(0.5)
     with client:
         while True:
             try:
-                data = recv_full_message(client)
+                data = client.recv(1024).decode()
                 if not data:
                     break  # No data means client closed connection
 
-                message = json.loads(data)
-                esp_id = message.get("esp_id")
+                # Parse CSV: esp_id, p1, p2, p3
+                parts = data.strip().split(",")
+                while len(parts) < 4:
+                    parts.append("")  # Ensure always 4 values
+
+                esp_id = int(parts[0]) if parts[0] else None
+                p1 = int(parts[1]) if parts[1] else None
+                p2 = int(parts[2]) if parts[2] else None
+                p3 = int(parts[3]) if parts[3] else None
+
                 if esp_id in ESP_MAP:
                     ESP = ESP_MAP[esp_id]
-                    ESP.pot_value = message["pot_value"]
+                    ESP.pot_value = p1
 
-                    # Handle any phase values if provided
                     if esp_id == 3:
-                        ESP.pot_value_ps_1 = message.get("phase_value1", 0)
+                        ESP.pot_value_ps_1 = p2 if p2 is not None else 0
                     elif esp_id == 4:
-                        ESP.pot_value_ps_1 = message.get("phase_value1", 0)
-                        ESP.pot_value_ps_2 = message.get("phase_value2", 0)
-
+                        ESP.pot_value_ps_1 = p2 if p2 is not None else 0
+                        ESP.pot_value_ps_2 = p3 if p3 is not None else 0
                 else:
-                    print("Received message with unknown esp_id.")
-            except json.JSONDecodeError:
-                print(f"❌ Invalid JSON received by {esp_id}")
+                    print(f"❌ Unknown esp_id: {esp_id}")
+                    continue
+
+            except ValueError as e:
+                print(f"❌ ValueError parsing CSV: {e} | Data: {data}")
+                continue
             except socket.timeout:
-                continue  # No data received in this interval; keep waiting.
+                continue
             except Exception as e:
-                print(f"❌ Error: {e} {esp_id}")
+                print(f"❌ Unexpected error with ESP {esp_id}: {e}")
                 break
+
             # Prepare and send the brightness JSON response
-            response_json = json.dumps(ESP.response_data) + "\n"
-            client.sendall(response_json.encode())
+            print(f"Response from {esp_id}: {ESP.response_data}")
+            response_csv = (ESP.response_data + "\n").encode()
+            client.sendall(response_csv)
             time.sleep(0.001)
 
 
