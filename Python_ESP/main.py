@@ -79,7 +79,7 @@ def handle_client(client):
                 else:
                     print("Received message with unknown esp_id.")
             except json.JSONDecodeError:
-                print("❌ Invalid JSON received.")
+                print(f"❌ Invalid JSON received by {esp_id}")
             except socket.timeout:
                 continue  # No data received in this interval; keep waiting.
             except Exception as e:

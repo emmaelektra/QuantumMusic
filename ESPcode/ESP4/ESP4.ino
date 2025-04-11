@@ -124,7 +124,7 @@ void loop() {
   }
   
   // In your loop function:
-  if (millis() - lastUpdateTimePOT >= 20) {
+  if (millis() - lastUpdateTimePOT >= 50) {
     lastUpdateTimePOT = millis();
     int potValue = analogRead(POT_PIN);
     int phaseValue1 = analogRead(PHASE_POT_PIN_1);
@@ -143,6 +143,7 @@ void loop() {
     jsonString += "\n";  // Terminate the message with newline
     
     laptopClient.print(jsonString);
+    //laptopClient.flush();
     //Serial.print("[ESP1] Sent pot update: ");
     //Serial.println(jsonString);
   }
