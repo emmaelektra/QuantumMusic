@@ -7,10 +7,16 @@
 #define PASSWORD "QuantumTech2025"
 #define LAPTOP_IP "192.168.4.2"  // Laptop's static IP
 
+const int udpPort = 1234;  // Port to listen on
+char incomingPacket[255];       // Buffer for incoming data
+
 // **Static IP Configuration for ESP3**
 IPAddress staticIP(192,168,4,5);  
 IPAddress gateway(192,168,4,1);
 IPAddress subnet(255,255,255,0);
+
+// Id of ESP
+#define ESP_ID 3
 
 // **ESP3 LED Configuration**
 #define LED_PIN2 26  // Phase-shifting strip
@@ -28,11 +34,24 @@ CRGB leds2[NUM_LEDS2];
 CRGB leds3[NUM_LEDS3];  
 CRGB leds4[NUM_LEDS4];
 
+uint8_t brightness1 = 0;
 uint8_t brightness2 = 0;
 uint8_t brightness3 = 0;
 uint8_t brightness4 = 0;
-uint8_t phaseShift = 0;
-bool entanglement = false;
+uint8_t phaseShift1 = 0;
+uint8_t phaseShift2 = 0;
+uint8_t entanglement1 = 0;
+uint8_t entanglement2  = 0;
+uint8_t pulse1 = 0;
+uint8_t pulse2 = 0;
+uint8_t strobe1 = 0;
+uint8_t strobe2 = 0;
+
+// Initialise poti values
+int potValue = -1;
+int psValue1 = -1;
+int psValue2 = -1;
+
 static int lastPotValue = -1;
 
 // Global variable to track last update
@@ -45,16 +64,17 @@ int thisfade = 1;
 
 
 WiFiClient laptopClient;
+WiFiUDP udp;
 
 void updateLEDs() {
   for (int i = 0; i < NUM_LEDS2; i++) {
-    int phasShiftbrightness2 = brightness2*(sin8((i + phaseShift) * 15))/255;
+    //int phasShiftbrightness2 = brightness2*(sin8((i + phaseShift2) * 15))/255;
     leds2[i] = CRGB::Red;
-    leds2[i].nscale8(phasShiftbrightness2);
+    leds2[i].nscale8(brightness2);
   }
-  if (entanglement != 0){
+  if (entanglement1 != 0){
     fadeToBlackBy(leds3, NUM_LEDS3, thisfade);  
-    for (int i = 0; i < entanglement; i++){
+    for (int i = 0; i < entanglement1; i++){
       int pos = random16(NUM_LEDS3);     
       leds3[pos] += CRGB::White;
       leds3[pos].nscale8(brightness3);
@@ -71,20 +91,6 @@ void updateLEDs() {
     leds4[i].nscale8(brightness4);
   }
   FastLED.show();
-}
-
-bool connectToLaptop() {
-  if (laptopClient.connected()) {
-    return true;
-  }
-  Serial.print("[ESP3] Connecting to laptop...");
-  if (laptopClient.connect(LAPTOP_IP, 80)) {
-    Serial.println("Connected.");
-    return true;
-  } else {
-    Serial.println("Connection failed.");
-    return false;
-  }
 }
 
 void setup() {
@@ -111,65 +117,91 @@ void setup() {
   FastLED.addLeds<WS2812B, LED_PIN2, GRB>(leds2, NUM_LEDS2);
   FastLED.addLeds<WS2812B, LED_PIN3, GRB>(leds3, NUM_LEDS3);
   FastLED.addLeds<WS2812B, LED_PIN4, GRB>(leds4, NUM_LEDS4);
+
+  // Start UDP
+  udp.begin(udpPort);
 }
 
 void loop() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - lastUpdateTimeOTA >= 20) {
-    lastUpdateTimeOTA = currentMillis;
-    ArduinoOTA.handle(); // handle OTA updates in the loop
-  }
-  // Maintain persistent connection to the laptop.
-  if (!connectToLaptop()) {
-    delay(1000);
-    return;
-  }
-  
-  // In your loop function:
-  if (currentMillis - lastUpdateTimePOT >= 20) {
-    lastUpdateTimePOT = currentMillis;
-    int potValue = analogRead(POT_PIN);
-    int phaseValue = analogRead(PHASE_POT_PIN);
-    //Serial.print("[ESP1] Potentiometer value: ");
-    //Serial.println(potValue);
+  // Read POT Values
+  potValue = analogRead(POT_PIN);
+  psValue1 = analogRead(PHASE_POT_PIN);
 
-    StaticJsonDocument<200> doc;
-    doc["esp_id"] = 3;
-    doc["pot_value"] = potValue;
-    doc["phase_value1"] = phaseValue;
-    
-    String jsonString;
-    serializeJson(doc, jsonString);
-    jsonString += "\n";  // Terminate the message with newline
-    
-    laptopClient.print(jsonString);
-    //Serial.print("[ESP1] Sent pot update: ");
-    //Serial.println(jsonString);
+  // Handle OTA
+  if (millis() - lastUpdateTimeOTA >= 50) {
+    lastUpdateTimeOTA = millis();
+    ArduinoOTA.handle(); 
   }
   
-  // Always check for incoming brightness data.
-  if (currentMillis - lastUpdateTimeLED >= 20) {
-    lastUpdateTimeLED = currentMillis;
-    if (laptopClient.available()) {
-      String response = laptopClient.readStringUntil('\n');
-      StaticJsonDocument<200> respDoc;
-      DeserializationError error = deserializeJson(respDoc, response);
-      if (!error) {
-        brightness2 = respDoc["strip_2_bright"];
-        brightness3 = respDoc["strip_3_bright"];
-        brightness4 = respDoc["strip_4_bright"];
-        phaseShift = respDoc["strip_2_phaseshift"];
-        entanglement = respDoc["Entanglement"];
-        //Serial.print("[ESP1] Updated brightness - Strip1: ");
-        //Serial.print(brightness1);
-        //Serial.print(", Strip2: ");
-        //Serial.println(brightness2);
-        //Serial.print("[ESP1] Updated brightness - Strip3: ");
-        //Serial.print(brightness3);
-        //Serial.print(", Strip4: ");
-        //Serial.println(brightness4);
-        updateLEDs();
+  // Send data over UDP
+  if (millis() - lastUpdateTimePOT >= 20) {
+    lastUpdateTimePOT = millis();
+    // Helper: convert int to String or blank if missing
+    auto intOrBlank = [](int v) {
+      return (v == -1) ? "" : String(v);
+    };
+
+    // Build CSV string with blanks for -1
+    String csvString = String(ESP_ID) + "," + intOrBlank(potValue) + "," + intOrBlank(psValue1) + "," + intOrBlank(psValue2) + "\n";
+
+    // Send to laptop
+    udp.beginPacket(LAPTOP_IP, udpPort);
+    udp.print(csvString);
+    udp.endPacket();
+  }
+  
+  // Recieve data over UDP and update strip
+  if (millis() - lastUpdateTimeLED >= 50) {
+    lastUpdateTimeLED = millis();
+    int packetSize = udp.parsePacket();
+    if (packetSize) {
+      int len = udp.read(incomingPacket, 255);
+      if (len > 0) {
+        incomingPacket[len] = '\0';  // Null-terminate the string
       }
     }
+
+    // Convert packet to string
+    String response = String(incomingPacket);
+
+    // Split CSV into tokens
+    int index = 0;
+    float values[12];  // Adjust if you add more fields
+
+    int lastComma = -1;
+    for (int i = 0; i < response.length(); i++) {
+      if (response[i] == ',' || i == response.length() - 1) {
+        int end = (response[i] == ',') ? i : i + 1;
+        String valueStr = response.substring(lastComma + 1, end);
+        valueStr.trim();
+        if (valueStr.length() > 0) {
+          values[index] = valueStr.toFloat();  // Parses to 0.0 if invalid
+        } else {
+          values[index] = NAN;  // Use NAN to indicate missing value
+        }
+        lastComma = i;
+        index++;
+        if (index >= 12) break;  // Safety check
+      }
+    }
+
+    // Now assign variables from csv
+    brightness1    = values[0];
+    brightness2    = values[1];
+    brightness3    = values[2];
+    brightness4    = values[3];
+    phaseShift1    = values[4];
+    phaseShift2    = values[5];
+    entanglement1  = values[6];
+    entanglement2  = values[7];
+    pulse1         = values[8];
+    pulse2         = values[9];
+    strobe1        = values[10];
+    strobe2        = values[11];
+
+    Serial.println(brightness2);
+    Serial.println(response);
+    // Update LEDS
+    updateLEDs();
   }
 }

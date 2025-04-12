@@ -27,91 +27,54 @@ ESP_MAP = {
 }
 
 ALLOWED_IPS = {"192.168.4.3", "192.168.4.4", "192.168.4.5", "192.168.4.6", "192.168.4.7", "192.168.4.8"}
-# Setup TCP server
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-server.bind(('', PORT))
-server.listen(10)  # Allow multiple connections
-server.setblocking(False)
+# Setup udp
+udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+udp_port = 1234
+
 print("✅ Waiting for ESP connections...")
 
-def handle_client(client):
-    client.settimeout(0.5)
-    with client:
-        while True:
-            try:
-                data = client.recv(1024).decode()
-                if not data:
-                    break  # No data means client closed connection
+def handle_esps(udp_socket):
+    """Constantly recieves data over udp from esps and updates corresponding class attributes"""
+    while True:
+        data, addr = udp_socket.recvfrom(1024)
+        decoded = data.decode(errors="replace").strip()
 
-                # Parse CSV: esp_id, p1, p2, p3
-                parts = data.strip().split(",")
-                while len(parts) < 4:
-                    parts.append("")  # Ensure always 4 values
+        #print(f"📡 Data from {addr}: {decoded}")
+        # Parse CSV: esp_id, p1, p2, p3
+        parts = decoded.split(",")
+        while len(parts) < 4:
+            parts.append("")  # Ensure always 4 values
 
-                esp_id = int(parts[0]) if parts[0] else None
-                p1 = int(parts[1]) if parts[1] else None
-                p2 = int(parts[2]) if parts[2] else None
-                p3 = int(parts[3]) if parts[3] else None
+        esp_id = int(parts[0]) if parts[0] else None
+        p1 = int(parts[1]) if parts[1] else None
+        p2 = int(parts[2]) if parts[2] else None
+        p3 = int(parts[3]) if parts[3] else None
 
-                if esp_id in ESP_MAP:
-                    ESP = ESP_MAP[esp_id]
-                    ESP.pot_value = p1
+        if esp_id in ESP_MAP:
+            ESP = ESP_MAP[esp_id]
+            ESP.pot_value = p1
 
-                    if esp_id == 3:
-                        ESP.pot_value_ps_1 = p2 if p2 is not None else 0
-                    elif esp_id == 4:
-                        ESP.pot_value_ps_1 = p2 if p2 is not None else 0
-                        ESP.pot_value_ps_2 = p3 if p3 is not None else 0
-                else:
-                    print(f"❌ Unknown esp_id: {esp_id}")
-                    continue
-
-            except ValueError as e:
-                print(f"❌ ValueError parsing CSV: {e} | Data: {data}")
-                continue
-            except socket.timeout:
-                continue
-            except Exception as e:
-                print(f"❌ Unexpected error with ESP {esp_id}: {e}")
-                break
-
-            # Prepare and send the brightness JSON response
-            print(f"Response from {esp_id}: {ESP.response_data}")
-            response_csv = (ESP.response_data + "\n").encode()
-            client.sendall(response_csv)
-            time.sleep(0.001)
-
-
-def accept_connections():
-    """
-    Continuously accept new connections only from allowed IPs.
-    Stop accepting once all allowed clients have connected.
-    """
-    connected_ips = set()
-
-    while connected_ips != ALLOWED_IPS:
-        try:
-            client, addr = server.accept()
-            client_ip = addr[0]
-            if client_ip in ALLOWED_IPS:
-                if client_ip not in connected_ips:
-                    print(f"✅ Connection from {client_ip}")
-                    connected_ips.add(client_ip)
-                    threading.Thread(target=handle_client, args=(client,), daemon=True).start()
-                else:
-                    print(f"Duplicate connection from {client_ip}. Closing connection.")
-                    client.close()
-            else:
-                print(f"Unauthorized connection from {client_ip}. Closing connection.")
-                client.close()
-        except BlockingIOError:
-            #print("Blocking IO")
-            time.sleep(0.1)
+            if esp_id == 1:
+                print(f"📡 Data from {addr}: {decoded}")
+            if esp_id == 3:
+                ESP.pot_value_ps_1 = p2 if p2 is not None else 0
+                #print(f"📡 Data from {addr}: {decoded}")
+            elif esp_id == 4:
+                ESP.pot_value_ps_1 = p2 if p2 is not None else 0
+                ESP.pot_value_ps_2 = p3 if p3 is not None else 0
+        else:
+            print(f"❌ Unknown esp_id: {esp_id}")
             continue
 
-    print("All predefined ESP devices are connected. No longer accepting new connections.")
+        udp_socket.sendto((ESP1.response_data + "\n").encode(), ("192.168.4.3", 1234))
+        udp_socket.sendto((ESP2.response_data + "\n").encode(), ("192.168.4.4", 1234))
+        udp_socket.sendto((ESP3.response_data + "\n").encode(), ("192.168.4.5", 1234))
+        udp_socket.sendto((ESP4.response_data + "\n").encode(), ("192.168.4.6", 1234))
+        udp_socket.sendto((ESP5.response_data + "\n").encode(), ("192.168.4.7", 1234))
+        udp_socket.sendto((ESP6.response_data + "\n").encode(), ("192.168.4.8", 1234))
 
+        print("ResponseData")
+        print(ESP1.response_data)
 
 def calculate_logic():
     """Calculates brightness values based on received ESP data."""
@@ -129,7 +92,8 @@ def calculate_logic():
             print(f"❌ Error in logic calculation: {e}")
 
 # Start connection handling and logic calculation in separate threads.
-thread1 = threading.Thread(target=accept_connections, daemon=True)
+udp_socket.bind(("0.0.0.0", udp_port))
+thread1 = threading.Thread(target=handle_esps, args=(udp_socket,),  daemon=True)
 thread2 = threading.Thread(target=calculate_logic, daemon=True)
 thread1.start()
 thread2.start()

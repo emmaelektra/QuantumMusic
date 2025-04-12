@@ -12,6 +12,12 @@ IPAddress staticIP(192,168,4,6);
 IPAddress gateway(192,168,4,1);
 IPAddress subnet(255,255,255,0);
 
+const int udpPort = 1234;  // Port to listen on
+char incomingPacket[255];       // Buffer for incoming data
+
+// Id of ESP
+#define ESP_ID 4
+
 // **ESP4 LED Configuration**
 #define LED_PIN1 5   // Phase shift strip 1
 #define LED_PIN2 26  // Phase shift strip 2
@@ -45,6 +51,11 @@ uint8_t pulse2 = 0;
 uint8_t strobe1 = 0;
 uint8_t strobe2 = 0;
 
+// Initialise poti values
+int potValue = -1;
+int psValue1 = -1;
+int psValue2 = -1;
+
 static int lastPotValue = -1;
 
 // Global variable to track last update
@@ -53,6 +64,7 @@ unsigned long lastUpdateTimePOT = 10;
 unsigned long lastUpdateTimeLED = 0;  
 
 WiFiClient laptopClient;
+WiFiUDP udp;
 
 void updateLEDs() {
   for (int i = 0; i < NUM_LEDS1; i++) {
@@ -115,87 +127,90 @@ void setup() {
   FastLED.addLeds<WS2812B, LED_PIN2, GRB>(leds2, NUM_LEDS2);
   FastLED.addLeds<WS2812B, LED_PIN3, GRB>(leds3, NUM_LEDS3);
   FastLED.addLeds<WS2812B, LED_PIN4, GRB>(leds4, NUM_LEDS4);
+
+  // Start UDP
+  udp.begin(udpPort);
 }
 
 void loop() {
-  //unsigned long currentMillis = millis();
+    // Read POT Values
+  potValue = analogRead(POT_PIN);
+  psValue1 = analogRead(PHASE_POT_PIN_1);
+
+  // Handle OTA
   if (millis() - lastUpdateTimeOTA >= 20) {
     lastUpdateTimeOTA = millis();
-    ArduinoOTA.handle(); // handle OTA updates in the loop
-  }
-  // Maintain persistent connection to the laptop.
-  if (!connectToLaptop()) {
-    delay(1000);
-    return;
+    ArduinoOTA.handle(); 
   }
   
-  // In your loop function:
-  if (millis() - lastUpdateTimePOT >= 50) {
+  // Send data over UDP
+  if (millis() - lastUpdateTimePOT >= 20) {
     lastUpdateTimePOT = millis();
-    int potValue = analogRead(POT_PIN);
-    int phaseValue1 = analogRead(PHASE_POT_PIN_1);
-    int phaseValue2 = analogRead(PHASE_POT_PIN_2);
-    //Serial.print("[ESP1] Potentiometer value: ");
-    //Serial.println(potValue);
+    // Helper: convert int to String or blank if missing
+    auto intOrBlank = [](int v) {
+      return (v == -1) ? "" : String(v);
+    };
 
-    StaticJsonDocument<200> doc;
-    doc["esp_id"] = 4;
-    doc["pot_value"] = potValue;
-    doc["phase_value1"] = phaseValue1;
-    doc["phase_value2"] = phaseValue2;
-    
-    String jsonString;
-    serializeJson(doc, jsonString);
-    jsonString += "\n";  // Terminate the message with newline
-    
-    laptopClient.print(jsonString);
-    //laptopClient.flush();
-    //Serial.print("[ESP1] Sent pot update: ");
-    //Serial.println(jsonString);
+    // Build CSV string with blanks for -1
+    String csvString = String(ESP_ID) + "," + intOrBlank(potValue) + "," + intOrBlank(psValue1) + "," + intOrBlank(psValue2) + "\n";
+
+    // Send to laptop
+    udp.beginPacket(LAPTOP_IP, udpPort);
+    udp.print(csvString);
+    udp.endPacket();
   }
   
-  // Always check for incoming brightness data.
+  // Recieve data over UDP and update strip
   if (millis() - lastUpdateTimeLED >= 20) {
     lastUpdateTimeLED = millis();
-    if (laptopClient.available()) {
-      String response = laptopClient.readStringUntil('\n');
+    int packetSize = udp.parsePacket();
+    if (packetSize) {
+      int len = udp.read(incomingPacket, 255);
+      if (len > 0) {
+        incomingPacket[len] = '\0';  // Null-terminate the string
+      }
+    }
 
-      // Split CSV into tokens
-      int index = 0;
-      float values[12];  // Adjust if you add more fields
+    // Convert packet to string
+    String response = String(incomingPacket);
 
-      int lastComma = -1;
-      for (int i = 0; i < response.length(); i++) {
-        if (response[i] == ',' || i == response.length() - 1) {
-          int end = (response[i] == ',') ? i : i + 1;
-          String valueStr = response.substring(lastComma + 1, end);
-          valueStr.trim();
-          if (valueStr.length() > 0) {
-            values[index] = valueStr.toFloat();  // Parses to 0.0 if invalid
-          } else {
-            values[index] = NAN;  // Use NAN to indicate missing value
-          }
-          lastComma = i;
-          index++;
-          if (index >= 12) break;  // Safety check
+    // Split CSV into tokens
+    int index = 0;
+    float values[12];  // Adjust if you add more fields
+
+    int lastComma = -1;
+    for (int i = 0; i < response.length(); i++) {
+      if (response[i] == ',' || i == response.length() - 1) {
+        int end = (response[i] == ',') ? i : i + 1;
+        String valueStr = response.substring(lastComma + 1, end);
+        valueStr.trim();
+        if (valueStr.length() > 0) {
+          values[index] = valueStr.toFloat();  // Parses to 0.0 if invalid
+        } else {
+          values[index] = NAN;  // Use NAN to indicate missing value
         }
+        lastComma = i;
+        index++;
+        if (index >= 12) break;  // Safety check
       }
+    }
 
-      // Now assign to your variables
-      brightness1    = values[0];
-      brightness2    = values[1];
-      brightness3    = values[2];
-      brightness4    = values[3];
-      phaseShift1    = values[4];
-      phaseShift2    = values[5];
-      entanglement1  = values[6];
-      entanglement2  = values[7];
-      pulse1         = values[8];
-      pulse2         = values[9];
-      strobe1        = values[10];
-      strobe2        = values[11];
-      updateLEDs();
-      }
+    // Now assign variables from csv
+    brightness1    = values[0];
+    brightness2    = values[1];
+    brightness3    = values[2];
+    brightness4    = values[3];
+    phaseShift1    = values[4];
+    phaseShift2    = values[5];
+    entanglement1  = values[6];
+    entanglement2  = values[7];
+    pulse1         = values[8];
+    pulse2         = values[9];
+    strobe1        = values[10];
+    strobe2        = values[11];
+
+    // Update LEDS
+    updateLEDs();
   }
 }
 

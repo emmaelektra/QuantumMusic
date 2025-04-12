@@ -7,6 +7,9 @@
 #define PASSWORD "QuantumTech2025"
 #define LAPTOP_IP "192.168.4.2"  // Laptop's static IP
 
+const int udpPort = 1234;  // Port to listen on
+char incomingPacket[255];       // Buffer for incoming data
+
 // Static IP Configuration for ESP1
 IPAddress staticIP(192, 168, 4, 3);
 IPAddress gateway(192, 168, 4, 1);
@@ -119,37 +122,18 @@ void setup() {
   FastLED.addLeds<WS2812B, LED_PIN3, GRB>(leds3, NUM_LEDS3);
   FastLED.addLeds<WS2812B, LED_PIN4, GRB>(leds4, NUM_LEDS4);
 
-  udp.begin(1234);
+  // Start UDP
+  udp.begin(udpPort);
 }
 
 void loop() {
-
-  const bool test = false;
-  if (test) {
-    int ps = udp.parsePacket();
-    if (ps > 0) {
-      static uint8_t bf[512];
-      int len = udp.read(bf, sizeof(bf));
-      if (len) {
-        brightness1 = bf[0];
-        updateLEDs();
-      }
-    }
-    return;
-  }
 
   if (millis() - lastUpdateTimeOTA >= 20) {
     lastUpdateTimeOTA = millis();
     ArduinoOTA.handle(); // handle OTA updates in the loop
   } 
-  // Maintain persistent connection to the laptop.
-  if (!connectToLaptop()) {
-    delay(1000);
-    return;
-  }
   
-  // In your loop function:
-  
+  // Send data over udp
   if (millis() - lastUpdateTimePOT >= 20) {
     lastUpdateTimePOT = millis();
     int potValue = analogRead(POT_PIN);
@@ -167,50 +151,58 @@ void loop() {
     String csvString = String(ESP_ID) + "," + intOrBlank(p1) + "," + intOrBlank(p2) + "," + intOrBlank(p3) + "\n";
 
     // Send to laptop
-    laptopClient.print(csvString);
+    udp.beginPacket(LAPTOP_IP, udpPort);
+    udp.print(csvString);
+    udp.endPacket();
   }
 
-  // Always check for incoming brightness data.
+  // Recieve data over UDP and update strip
   if (millis() - lastUpdateTimeLED >= 20) {
     lastUpdateTimeLED = millis();
-    if (laptopClient.available()) {
-      String response = laptopClient.readStringUntil('\n');
-
-      // Split CSV into tokens
-      int index = 0;
-      float values[12];  // Adjust if you add more fields
-
-      int lastComma = -1;
-      for (int i = 0; i < response.length(); i++) {
-        if (response[i] == ',' || i == response.length() - 1) {
-          int end = (response[i] == ',') ? i : i + 1;
-          String valueStr = response.substring(lastComma + 1, end);
-          valueStr.trim();
-          if (valueStr.length() > 0) {
-            values[index] = valueStr.toFloat();  // Parses to 0.0 if invalid
-          } else {
-            values[index] = NAN;  // Use NAN to indicate missing value
-          }
-          lastComma = i;
-          index++;
-          if (index >= 12) break;  // Safety check
-        }
+    int packetSize = udp.parsePacket();
+    if (packetSize) {
+      int len = udp.read(incomingPacket, 255);
+      if (len > 0) {
+        incomingPacket[len] = '\0';  // Null-terminate the string
       }
+    }
+
+    String response = String(incomingPacket);
+
+    // Split CSV into tokens
+    int index = 0;
+    float values[12];  // Adjust if you add more fields
+
+    int lastComma = -1;
+    for (int i = 0; i < response.length(); i++) {
+      if (response[i] == ',' || i == response.length() - 1) {
+        int end = (response[i] == ',') ? i : i + 1;
+        String valueStr = response.substring(lastComma + 1, end);
+        valueStr.trim();
+        if (valueStr.length() > 0) {
+          values[index] = valueStr.toFloat();  // Parses to 0.0 if invalid
+        } else {
+          values[index] = NAN;  // Use NAN to indicate missing value
+        }
+        lastComma = i;
+        index++;
+        if (index >= 12) break;  // Safety check
+      }
+    }
 
       // Now assign to your variables
-      brightness1    = values[0];
-      brightness2    = values[1];
-      brightness3    = values[2];
-      brightness4    = values[3];
-      phaseShift1    = values[4];
-      phaseShift2    = values[5];
-      entanglement1  = values[6];
-      entanglement2  = values[7];
-      pulse1         = values[8];
-      pulse2         = values[9];
-      strobe1        = values[10];
-      strobe2        = values[11];
-      updateLEDs();
-      }
+    brightness1    = values[0];
+    brightness2    = values[1];
+    brightness3    = values[2];
+    brightness4    = values[3];
+    phaseShift1    = values[4];
+    phaseShift2    = values[5];
+    entanglement1  = values[6];
+    entanglement2  = values[7];
+    pulse1         = values[8];
+    pulse2         = values[9];
+    strobe1        = values[10];
+    strobe2        = values[11];
+    updateLEDs();
   }
 }
