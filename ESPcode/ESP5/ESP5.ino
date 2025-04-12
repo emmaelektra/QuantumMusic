@@ -32,10 +32,10 @@ uint8_t brightness1 = 0;
 uint8_t brightness2 = 0;
 uint8_t brightness3 = 0;
 uint8_t brightness4 = 0;
-uint8_t phaseShift1 = 0;
-uint8_t phaseShift2 = 0;
-uint8_t entanglement1 = 0;
-uint8_t entanglement2  = 0;
+float phaseShift1 = 0;
+float phaseShift2 = 0;
+float entanglement1 = 0;
+float entanglement2  = 0;
 uint8_t pulse1 = 0;
 uint8_t pulse2 = 0;
 uint8_t strobe1 = 0;
@@ -97,9 +97,6 @@ void setup() {
 }
 
 void loop() {
-  // Read POT Values
-  potValue = analogRead(POT_PIN);
-
   // Handle OTA
   if (millis() - lastUpdateTimeOTA >= 20) {
     lastUpdateTimeOTA = millis();
@@ -109,6 +106,8 @@ void loop() {
   // Send data over UDP
   if (millis() - lastUpdateTimePOT >= 20) {
     lastUpdateTimePOT = millis();
+    // Read POT Values
+    potValue = analogRead(POT_PIN);
     // Helper: convert int to String or blank if missing
     auto intOrBlank = [](int v) {
       return (v == -1) ? "" : String(v);
@@ -131,48 +130,47 @@ void loop() {
       int len = udp.read(incomingPacket, 255);
       if (len > 0) {
         incomingPacket[len] = '\0';  // Null-terminate the string
-      }
-    }
+        // Convert packet to string
+        String response = String(incomingPacket);
 
-    // Convert packet to string
-    String response = String(incomingPacket);
+        // Split CSV into tokens
+        int index = 0;
+        float values[12];  // Adjust if you add more fields
 
-    // Split CSV into tokens
-    int index = 0;
-    float values[12];  // Adjust if you add more fields
-
-    int lastComma = -1;
-    for (int i = 0; i < response.length(); i++) {
-      if (response[i] == ',' || i == response.length() - 1) {
-        int end = (response[i] == ',') ? i : i + 1;
-        String valueStr = response.substring(lastComma + 1, end);
-        valueStr.trim();
-        if (valueStr.length() > 0) {
-          values[index] = valueStr.toFloat();  // Parses to 0.0 if invalid
-        } else {
-          values[index] = NAN;  // Use NAN to indicate missing value
+        int lastComma = -1;
+        for (int i = 0; i < response.length(); i++) {
+          if (response[i] == ',' || i == response.length() - 1) {
+            int end = (response[i] == ',') ? i : i + 1;
+            String valueStr = response.substring(lastComma + 1, end);
+            valueStr.trim();
+            if (valueStr.length() > 0) {
+              values[index] = valueStr.toFloat();  // Parses to 0.0 if invalid
+            } else {
+              values[index] = NAN;  // Use NAN to indicate missing value
+            }
+            lastComma = i;
+            index++;
+            if (index >= 12) break;  // Safety check
+          }
         }
-        lastComma = i;
-        index++;
-        if (index >= 12) break;  // Safety check
+
+        // Now assign variables from csv
+        brightness1    = values[0];
+        brightness2    = values[1];
+        brightness3    = values[2];
+        brightness4    = values[3];
+        phaseShift1    = values[4];
+        phaseShift2    = values[5];
+        entanglement1  = values[6];
+        entanglement2  = values[7];
+        pulse1         = values[8];
+        pulse2         = values[9];
+        strobe1        = values[10];
+        strobe2        = values[11];
+
+        // Update LED strip
+        updateLEDs();
       }
     }
-
-    // Now assign variables from csv
-    brightness1    = values[0];
-    brightness2    = values[1];
-    brightness3    = values[2];
-    brightness4    = values[3];
-    phaseShift1    = values[4];
-    phaseShift2    = values[5];
-    entanglement1  = values[6];
-    entanglement2  = values[7];
-    pulse1         = values[8];
-    pulse2         = values[9];
-    strobe1        = values[10];
-    strobe2        = values[11];
-
-    // Update LEDS
-    updateLEDs();
   }
 }

@@ -55,7 +55,7 @@ class ESPLED:
             strip_2_bright = input_brightness_2
             strip_3_bright = self.output_brightness_1
             strip_4_bright = self.output_brightness_2
-            strip_2_phaseshift = int(round(phaseVal1, 3))
+            #strip_2_phaseshift = int(round(phaseVal1, 3))
             entanglement1 = int(entanglement)
         elif self.id == 4:
             potVal1 = input_brightness_1/77
@@ -69,8 +69,8 @@ class ESPLED:
             strip_2_bright = input_brightness_2
             strip_3_bright = self.output_brightness_1
             strip_4_bright = self.output_brightness_2
-            strip_1_phaseshift = int(round(phaseVal1, 3))
-            strip_2_phaseshift = int(round(phaseVal2, 3))
+            strip_1_phaseshift = round(phaseVal1, 3)
+            strip_2_phaseshift = round(phaseVal2, 3)
             entanglement1 = int(entanglement)
         else:
             self.output_brightness_1 = int((input_brightness_1 / 77 * (self.pot_value / 4095) + input_brightness_2 / 77 * (self.pot_value / 4095)) * 77)

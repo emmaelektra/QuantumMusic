@@ -42,10 +42,10 @@ uint8_t brightness1 = 0;
 uint8_t brightness2 = 0;
 uint8_t brightness3 = 0;
 uint8_t brightness4 = 0;
-uint8_t phaseShift1 = 0;
-uint8_t phaseShift2 = 0;
-uint8_t entanglement1 = 0;
-uint8_t entanglement2  = 0;
+float phaseShift1 = 0;
+float phaseShift2 = 0;
+float entanglement1 = 0;
+float entanglement2  = 0;
 uint8_t pulse1 = 0;
 uint8_t pulse2 = 0;
 uint8_t strobe1 = 0;
@@ -69,8 +69,8 @@ WiFiUDP udp;
 void updateLEDs() {
   for (int i = 0; i < NUM_LEDS1; i++) {
     int phasShiftbrightness1 = brightness1*(sin8((i + phaseShift1) * 15))/255;
-    leds2[i] = CRGB::Red;
-    leds2[i].nscale8(phasShiftbrightness1);
+    leds1[i] = CRGB::Red;
+    leds1[i].nscale8(phasShiftbrightness1);
   }
   for (int i = 0; i < NUM_LEDS2; i++) {
     int phasShiftbrightness2 = brightness2*(sin8((i + phaseShift2) * 15))/255;
@@ -86,20 +86,6 @@ void updateLEDs() {
     leds4[i].nscale8(brightness4);
   }
   FastLED.show();
-}
-
-bool connectToLaptop() {
-  if (laptopClient.connected()) {
-    return true;
-  }
-  Serial.print("[ESP4] Connecting to laptop...");
-  if (laptopClient.connect(LAPTOP_IP, 80)) {
-    Serial.println("Connected.");
-    return true;
-  } else {
-    Serial.println("Connection failed.");
-    return false;
-  }
 }
 
 void setup() {
@@ -133,9 +119,6 @@ void setup() {
 }
 
 void loop() {
-    // Read POT Values
-  potValue = analogRead(POT_PIN);
-  psValue1 = analogRead(PHASE_POT_PIN_1);
 
   // Handle OTA
   if (millis() - lastUpdateTimeOTA >= 20) {
@@ -146,6 +129,10 @@ void loop() {
   // Send data over UDP
   if (millis() - lastUpdateTimePOT >= 20) {
     lastUpdateTimePOT = millis();
+    // Read POT Values
+    potValue = analogRead(POT_PIN);
+    psValue1 = analogRead(PHASE_POT_PIN_1);
+    psValue2 = analogRead(PHASE_POT_PIN_2);
     // Helper: convert int to String or blank if missing
     auto intOrBlank = [](int v) {
       return (v == -1) ? "" : String(v);

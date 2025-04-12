@@ -22,8 +22,8 @@ char incomingPacket[255];       // Buffer for incoming data
 #define LED_PIN4 25
 #define POT_PIN 34
 
-#define NUM_LEDS3 100  
-#define NUM_LEDS4 100  
+#define NUM_LEDS3 200  
+#define NUM_LEDS4 200  
 
 CRGB leds3[NUM_LEDS3];
 CRGB leds4[NUM_LEDS4];
@@ -32,10 +32,10 @@ uint8_t brightness1 = 0;
 uint8_t brightness2 = 0;
 uint8_t brightness3 = 0;
 uint8_t brightness4 = 0;
-uint8_t phaseShift1 = 0;
-uint8_t phaseShift2 = 0;
-uint8_t entanglement1 = 0;
-uint8_t entanglement2  = 0;
+float phaseShift1 = 0;
+float phaseShift2 = 0;
+float entanglement1 = 0;
+float entanglement2  = 0;
 uint8_t pulse1 = 0;
 uint8_t pulse2 = 0;
 uint8_t strobe1 = 0;
@@ -97,8 +97,6 @@ void setup() {
 }
 
 void loop() {
-  // Read POT Values
-  potValue = analogRead(POT_PIN);
 
   // Handle OTA
   if (millis() - lastUpdateTimeOTA >= 20) {
@@ -109,6 +107,8 @@ void loop() {
   // Send data over UDP
   if (millis() - lastUpdateTimePOT >= 20) {
     lastUpdateTimePOT = millis();
+    // Read POT Values
+    potValue = analogRead(POT_PIN);
     // Helper: convert int to String or blank if missing
     auto intOrBlank = [](int v) {
       return (v == -1) ? "" : String(v);

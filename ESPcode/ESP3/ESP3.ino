@@ -38,10 +38,10 @@ uint8_t brightness1 = 0;
 uint8_t brightness2 = 0;
 uint8_t brightness3 = 0;
 uint8_t brightness4 = 0;
-uint8_t phaseShift1 = 0;
-uint8_t phaseShift2 = 0;
-uint8_t entanglement1 = 0;
-uint8_t entanglement2  = 0;
+float phaseShift1 = 0;
+float phaseShift2 = 0;
+float entanglement1 = 0;
+float entanglement2  = 0;
 uint8_t pulse1 = 0;
 uint8_t pulse2 = 0;
 uint8_t strobe1 = 0;
@@ -123,9 +123,6 @@ void setup() {
 }
 
 void loop() {
-  // Read POT Values
-  potValue = analogRead(POT_PIN);
-  psValue1 = analogRead(PHASE_POT_PIN);
 
   // Handle OTA
   if (millis() - lastUpdateTimeOTA >= 50) {
@@ -137,6 +134,9 @@ void loop() {
   if (millis() - lastUpdateTimePOT >= 20) {
     lastUpdateTimePOT = millis();
     // Helper: convert int to String or blank if missing
+    // Read POT Values
+    potValue = analogRead(POT_PIN);
+    psValue1 = analogRead(PHASE_POT_PIN);
     auto intOrBlank = [](int v) {
       return (v == -1) ? "" : String(v);
     };
