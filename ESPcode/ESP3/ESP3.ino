@@ -68,7 +68,7 @@ WiFiUDP udp;
 
 void updateLEDs() {
   for (int i = 0; i < NUM_LEDS2; i++) {
-    //int phasShiftbrightness2 = brightness2*(sin8((i + phaseShift2) * 15))/255;
+    int phasShiftbrightness2 = brightness2*(sin8((i + phaseShift2) * 15))/255;
     leds2[i] = CRGB::Red;
     leds2[i].nscale8(brightness2);
   }
@@ -125,7 +125,7 @@ void setup() {
 void loop() {
 
   // Handle OTA
-  if (millis() - lastUpdateTimeOTA >= 50) {
+  if (millis() - lastUpdateTimeOTA >= 20) {
     lastUpdateTimeOTA = millis();
     ArduinoOTA.handle(); 
   }
@@ -151,7 +151,7 @@ void loop() {
   }
   
   // Recieve data over UDP and update strip
-  if (millis() - lastUpdateTimeLED >= 50) {
+  if (millis() - lastUpdateTimeLED >= 20) {
     lastUpdateTimeLED = millis();
     int packetSize = udp.parsePacket();
     if (packetSize) {
@@ -199,8 +199,6 @@ void loop() {
     strobe1        = values[10];
     strobe2        = values[11];
 
-    Serial.println(brightness2);
-    Serial.println(response);
     // Update LEDS
     updateLEDs();
   }

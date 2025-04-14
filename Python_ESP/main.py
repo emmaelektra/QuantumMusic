@@ -54,24 +54,18 @@ def handle_esps(udp_socket):
             ESP = ESP_MAP[esp_id]
             ESP.pot_value = p1
 
-            if esp_id == 1:
-                print(f"📡 Data from {addr}: {decoded}")
             if esp_id == 3:
                 ESP.pot_value_ps_1 = p2 if p2 is not None else 0
-                #print(f"📡 Data from {addr}: {decoded}")
+                #print(f"📡 Data from {ESP.response_data}: {decoded}")
             elif esp_id == 4:
                 ESP.pot_value_ps_1 = p2 if p2 is not None else 0
                 ESP.pot_value_ps_2 = p3 if p3 is not None else 0
-
             udp_socket.sendto((ESP.response_data + "\n").encode(), (ESP.ip, 1234))
         else:
             print(f"❌ Unknown esp_id: {esp_id}")
             continue
-
-        time.sleep(0.0001)
-
-        print("ResponseData")
-        print(ESP4.response_data)
+        print(f"📡 Data from ESP4: {ESP4.response_data}")
+    #print(ESP3.response_data)
 
 def calculate_logic():
     """Calculates brightness values based on received ESP data."""
