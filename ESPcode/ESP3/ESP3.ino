@@ -67,31 +67,57 @@ WiFiClient laptopClient;
 WiFiUDP udp;
 
 void updateLEDs() {
+  // Phase shifted sine pattern for leds2
   for (int i = 0; i < NUM_LEDS2; i++) {
-    int phasShiftbrightness2 = brightness2*(sin8((i + phaseShift2) * 15))/255;
+    int phasShiftbrightness2 = brightness2 * (sin8((i + phaseShift2) * 15)) / 255;
     leds2[i] = CRGB::Red;
-    leds2[i].nscale8(brightness2);
+    leds2[i].nscale8(phasShiftbrightness2);
   }
-  if (entanglement1 != 0){
-    fadeToBlackBy(leds3, NUM_LEDS3, thisfade);  
-    for (int i = 0; i < entanglement1; i++){
-      int pos = random16(NUM_LEDS3);     
-      leds3[pos] += CRGB::White;
-      leds3[pos].nscale8(brightness3);
-    }
-  } 
-  else {
-    for (int i = 0; i < NUM_LEDS3; i++) {
-      leds3[i] = CRGB::White;
-      leds3[i].nscale8(brightness3);
+
+  // ----------------------
+  // Twinkling with blending
+  // ----------------------
+
+  fadeToBlackBy(leds3, NUM_LEDS3, thisfade);
+
+  // Blending amount: 0 = full glow, 1 = full twinkle
+  float fadeAmount = constrain(entanglement1 / 20.0, 0.0, 1.0);  // normalized
+  fadeAmount = pow(fadeAmount, 1.5);  // optional: softer entry
+
+  // Twinkle pattern buffer
+  CRGB twinkleBuffer[NUM_LEDS3];
+  fill_solid(twinkleBuffer, NUM_LEDS3, CRGB::Black);
+
+  // Twinkle logic based on entanglement
+  int maxSparkles = map(entanglement1, 1, 15, NUM_LEDS3 / 1.5, NUM_LEDS3 / 15);
+  int twinkleChance = map(entanglement1, 1, 15, 1, 80);
+
+  for (int i = 0; i < maxSparkles; i++) {
+    if (random8() < twinkleChance) {
+      int pos = random16(NUM_LEDS3);
+      twinkleBuffer[pos] = CRGB::Red;
+      twinkleBuffer[pos].nscale8(brightness3 / 4);
     }
   }
+
+  // Blend twinkleBuffer with steady red background
+  for (int i = 0; i < NUM_LEDS3; i++) {
+    CRGB glowColor = CRGB::Red;
+    glowColor.nscale8(brightness3 / 4);
+
+    leds3[i] = blend(glowColor, twinkleBuffer[i], fadeAmount * 255);
+  }
+
+  // Steady brightness for leds4
   for (int i = 0; i < NUM_LEDS4; i++) {
     leds4[i] = CRGB::Red;
-    leds4[i].nscale8(brightness4);
+    leds4[i].nscale8(brightness4 / 4);
   }
+
   FastLED.show();
 }
+
+
 
 void setup() {
   Serial.begin(115200);

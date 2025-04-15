@@ -48,6 +48,12 @@ int psValue2 = -1;
 
 static int lastPotValue = -1;
 
+// For WiFi reconnection
+static unsigned long lastReconnectAttempt = 0;
+
+// For watchdog restart
+unsigned long lastGoodPacketTime;
+
 // Global variable to track last update
 unsigned long lastUpdateTimeOTA = 0;
 unsigned long lastUpdateTimePOT = 0;
@@ -94,9 +100,25 @@ void setup() {
 
   // Start UDP
   udp.begin(udpPort);
+  lastGoodPacketTime = millis();
+
 }
 
 void loop() {
+  // Reconnect WiFi if disconnected
+  if (WiFi.status() != WL_CONNECTED && millis() - lastReconnectAttempt > 5000) {
+    lastReconnectAttempt = millis();
+    Serial.println("[ESP5] WiFi disconnected. Attempting reconnect...");
+    WiFi.disconnect();
+    WiFi.begin(SSID, PASSWORD);
+  }
+
+  // Watchdog: Restart if no good packets in 10 seconds
+  if (millis() - lastGoodPacketTime > 10000) {
+    Serial.println("[ESP5] No data received for 10 seconds. Restarting...");
+    ESP.restart();
+  }
+
   // Handle OTA
   if (millis() - lastUpdateTimeOTA >= 20) {
     lastUpdateTimeOTA = millis();
@@ -132,6 +154,10 @@ void loop() {
         incomingPacket[len] = '\0';  // Null-terminate the string
       }
     }
+    if (packetSize > 0) {
+      lastGoodPacketTime = millis();  // We got something from the server
+    }
+
 
     // Convert packet to string
     String response = String(incomingPacket);

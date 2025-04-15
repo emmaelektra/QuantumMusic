@@ -62,7 +62,7 @@ WiFiClient laptopClient;
 
 void updateLEDs() {
   for (int i = 0; i < NUM_LEDS1; i++) {
-    leds1[i] = CRGB::Green;
+    leds1[i] = CRGB::Red;
     leds1[i].nscale8(brightness1);
   }
   for (int i = 0; i < NUM_LEDS2; i++) {

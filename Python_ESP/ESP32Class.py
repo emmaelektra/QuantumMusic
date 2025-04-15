@@ -23,6 +23,7 @@ class ESPLED:
         self.response_data = None
         self.output_brightness_1 = 0
         self.output_brightness_2 = 0
+        self.entanglement = 0
     
     def get_output(self, input_brightness_1, input_brightness_2):
         # Initialise output variables
@@ -42,45 +43,53 @@ class ESPLED:
         # Check for entanglement
         if 0.3 <= (self.pot_value / 4095) <= 0.7 and input_brightness_1 != 0 and input_brightness_2 != 0:
             dif = abs(self.pot_value / 4095 - 0.5)
-            entanglement = 2*(1 + round(dif * 45))
+            self.entanglement = 2*(1 + round(dif * 45))
         else:
-            entanglement = 0
+            self.entanglement = 0
         # Calculate brightness
         if self.id == 3:
+            T = self.pot_value/4095
+            R = 1-self.pot_value/4095
             phaseVal1 = (self.pot_value_ps_1 / 4095) * 2 * math.pi
-            self.output_brightness_1 = int((input_brightness_1 / 77 * (self.pot_value / 4095) + input_brightness_2 / 77 * (self.pot_value / 4095)) * 77)
-            self.output_brightness_2 = int((input_brightness_1 / 77 * (77 - self.output_brightness_1) / 77 + input_brightness_2 / 77 * (77 - self.output_brightness_1) / 77) * 77)
+            self.output_brightness_1 = int((input_brightness_1 + input_brightness_2) * T)
+            self.output_brightness_2 = int((input_brightness_1 + input_brightness_2) * R)
             # Update output data
-            strip_1_bright = abs(input_brightness_1)
-            strip_2_bright = abs(input_brightness_2)
-            strip_3_bright = abs(self.output_brightness_1)
-            strip_4_bright = abs(self.output_brightness_2)
+            strip_1_bright = input_brightness_1 if input_brightness_1 >= 0 else 0
+            strip_2_bright = input_brightness_2 if input_brightness_2 >= 0 else 0
+            strip_3_bright = self.output_brightness_1 if self.output_brightness_1 >= 0 else 0
+            strip_4_bright = self.output_brightness_2 if self.output_brightness_2 >= 0 else 0
             strip_2_phaseshift = round(phaseVal1, 3)
-            entanglement1 = int(entanglement)
+            #if 0.3 <= (self.pot_value / 4095) <= 0.7 and input_brightness_1 != 0 and input_brightness_2 != 0:
+            #    dif = abs(self.pot_value / 4095 - 0.5)
+            self.entanglement = round((2*T*R*(1+math.cos(phaseVal1)))/(1+2*T*R),3)*20
+            entanglement1 = int(self.entanglement)
         elif self.id == 4:
-            potVal1 = input_brightness_1/77
-            potVal2 = (self.pot_value / 4095)
+            T1, R1 = input_brightness_1/77, (1-(input_brightness_1/77))
+            T2, R2 = (self.pot_value / 4095), (1-(self.pot_value / 4095))
             phaseVal1 = (self.pot_value_ps_1 / 4095) * 2 * math.pi
             phaseVal2 = (self.pot_value_ps_2 / 4095) * 2 * math.pi
-            self.output_brightness_1 = int((input_brightness_1/77 * (potVal1*potVal2 + (1-potVal1)* (1-potVal2) - (2 * math.cos(phaseVal1-phaseVal2) * math.sqrt(potVal1*potVal2*(1-potVal1)*(1-potVal2)))) + input_brightness_2/77 * (potVal1*potVal2 + (1-potVal1)* (1-potVal2) - (2 * math.cos(phaseVal1-phaseVal2) * math.sqrt(potVal1*potVal2*(1-potVal1)*(1-potVal2)))))*77)
-            self.output_brightness_2 = int((input_brightness_1/77 * (potVal1*(1-potVal2) + potVal2*(1-potVal1) + (2 * math.cos(phaseVal1-phaseVal2) * math.sqrt(potVal1*potVal2*(1-potVal1)*(1-potVal2)))) + input_brightness_2/77 * (potVal1*(1-potVal2) + potVal2*(1-potVal1) + (2 * math.cos(phaseVal1-phaseVal2) * math.sqrt(potVal1*potVal2*(1-potVal1)*(1-potVal2)))))*77)
+            self.output_brightness_1 = int((T1 * (T1*T2 + R1*R2 - (2 * math.cos(phaseVal1-phaseVal2) * math.sqrt(T1*T2*R1*R2))) + input_brightness_2/77 * (T1*T2 + R1*R2 - (2 * math.cos(phaseVal1-phaseVal2) * math.sqrt(T1*T2*R1*R2))))*77)
+            self.output_brightness_2 = int((T1 * (T1*R2 + R1*T2 + (2 * math.cos(phaseVal1-phaseVal2) * math.sqrt(T1*T2*R1*R2))) + input_brightness_2/77 * (T1*R2 + R1*T2 + (2 * math.cos(phaseVal1-phaseVal2) * math.sqrt(T1*T2*R1*R2))))*77)
             # Update output data
-            strip_1_bright = abs(input_brightness_1)
-            strip_2_bright = abs(input_brightness_2)
-            strip_3_bright = abs(self.output_brightness_1)
-            strip_4_bright = abs(self.output_brightness_2)
+            strip_1_bright = input_brightness_1 if input_brightness_1 >= 0 else 0
+            strip_2_bright = input_brightness_2 if input_brightness_2 >= 0 else 0
+            strip_3_bright = self.output_brightness_1 if self.output_brightness_1 >= 0 else 0
+            strip_4_bright = self.output_brightness_2 if self.output_brightness_2 >= 0 else 0
             strip_1_phaseshift = round(phaseVal1, 3)
             strip_2_phaseshift = round(phaseVal2, 3)
-            entanglement1 = int(entanglement)
+            entanglement1 = int(self.entanglement)
         else:
-            self.output_brightness_1 = int((input_brightness_1 / 77 * (self.pot_value / 4095) + input_brightness_2 / 77 * (self.pot_value / 4095)) * 77)
-            self.output_brightness_2 = int((input_brightness_1 / 77 * (77 - self.output_brightness_1)/77 + input_brightness_2 / 77 * (77 - self.output_brightness_1)/77) * 77)
+            total_brightness = input_brightness_1 + input_brightness_2
+            alpha = self.pot_value / 4095
+
+            self.output_brightness_1 = int(total_brightness * alpha)
+            self.output_brightness_2 = int(total_brightness * (1 - alpha))
             # Update output data
-            strip_1_bright = abs(input_brightness_1)
-            strip_2_bright = abs(input_brightness_2)
-            strip_3_bright = abs(self.output_brightness_1)
-            strip_4_bright = abs(self.output_brightness_2)
-            entanglement1 = int(entanglement)
+            strip_1_bright = input_brightness_1 if input_brightness_1 >= 0 else 0
+            strip_2_bright = input_brightness_2 if input_brightness_2 >= 0 else 0
+            strip_3_bright = self.output_brightness_1 if self.output_brightness_1 >= 0 else 0
+            strip_4_bright = self.output_brightness_2 if self.output_brightness_2 >= 0 else 0
+            entanglement1 = int(self.entanglement)
 
         # Pharse output data
         # Create the row in the correct fixed order
