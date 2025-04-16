@@ -56,7 +56,7 @@ static int lastPotValue = -1;
 
 // Global variable to track last update
 unsigned long lastUpdateTimeOTA = 0;
-unsigned long lastUpdateTimePOT = 0;
+unsigned long lastUpdateTimePOT = 10;
 unsigned long lastUpdateTimeLED = 0;  
 
 //Entanglement parameters

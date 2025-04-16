@@ -53,17 +53,61 @@ unsigned long lastUpdateTimeOTA = 0;
 unsigned long lastUpdateTimePOT = 0;
 unsigned long lastUpdateTimeLED = 0;  
 
+//Entanglement parameters
+int thisfade = 1;
+
 WiFiClient laptopClient;
 WiFiUDP udp;
 
 void updateLEDs() {
-  for (int i = 0; i < NUM_LEDS3; i++) {
-    leds3[i] = CRGB::White;
-    leds3[i].nscale8(brightness3);
+  // Entanglement on strips 3 and 4
+  int sparkleBoost = map(entanglement1, 0, 15, 0, 255);
+  fadeToBlackBy(leds3, NUM_LEDS3, thisfade);
+  fadeToBlackBy(leds4, NUM_LEDS4, thisfade);
+
+  // Blending amount: 0 = full glow, 1 = full twinkle
+  float fadeAmount = constrain(entanglement1 / 20.0, 0.0, 1.0);  // normalized
+  fadeAmount = pow(fadeAmount, 1.5);  // optional: softer entry
+
+  // Twinkle pattern buffer
+  CRGB twinkleBuffer3[NUM_LEDS3];
+  CRGB twinkleBuffer4[NUM_LEDS4];
+  fill_solid(twinkleBuffer3, NUM_LEDS3, CRGB::Black);
+  fill_solid(twinkleBuffer4, NUM_LEDS4, CRGB::Black);
+
+  // Twinkle logic based on entanglement
+  int maxSparkles3 = map(entanglement1, 1, 15, NUM_LEDS3 / 1.5, NUM_LEDS3 / 30);
+  int maxSparkles4 = map(entanglement1, 1, 15, NUM_LEDS4 / 1.5, NUM_LEDS4 / 30);
+  int twinkleChance = map(entanglement1, 1, 15, 1, 20);
+
+  for (int i = 0; i < maxSparkles3; i++) {
+    if (random8() < twinkleChance) {
+      int pos = random16(NUM_LEDS3);
+      twinkleBuffer3[pos] = CRGB::White;
+      twinkleBuffer3[pos].nscale8(sparkleBoost);  // full entanglement = full sparkle
+    }
   }
+
+  // Blend twinkleBuffer with steady white background
+  for (int i = 0; i < NUM_LEDS3; i++) {
+    CRGB glowColor = CRGB::White;
+    glowColor.nscale8(brightness3);
+
+    leds3[i] = blend(glowColor, twinkleBuffer3[i], fadeAmount * 255);
+  }
+
+    for (int i = 0; i < maxSparkles4; i++) {
+    if (random8() < twinkleChance) {
+      int pos = random16(NUM_LEDS4);
+      twinkleBuffer4[pos] = CRGB::White;
+      twinkleBuffer4[pos].nscale8(sparkleBoost);  // full entanglement = full sparkle
+    }
+  }
+
   for (int i = 0; i < NUM_LEDS4; i++) {
-    leds4[i] = CRGB::White;
-    leds4[i].nscale8(brightness4);
+    CRGB glowColor = CRGB::White;
+    glowColor.nscale8(brightness4);
+    leds4[i] = blend(glowColor, twinkleBuffer4[i], fadeAmount * 255);
   }
   FastLED.show();
 }

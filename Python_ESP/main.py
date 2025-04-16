@@ -6,7 +6,9 @@ from ESP32Class import ESPLED
 
 PORT = 80
 channel_1_brightness = 77
+channel_2_brightness = 0
 channel_3_brightness = 77
+channel_4_brightness = 0
 
 # Define ESP instances explicitly
 ESP1 = ESPLED("192.168.4.3", 1, 2000)
@@ -75,8 +77,8 @@ def calculate_logic():
     """Calculates brightness values based on received ESP data."""
     while True:
         try:
-            ESP1.get_output(channel_1_brightness, 0)
-            ESP2.get_output(channel_3_brightness, 0)
+            ESP1.get_output(channel_1_brightness, channel_2_brightness)
+            ESP2.get_output(channel_3_brightness, channel_4_brightness)
             ESP3.get_output(ESP1.output_brightness_2, ESP2.output_brightness_1)
             ESP4.get_output(ESP1.output_brightness_1, ESP3.output_brightness_1)
             ESP5.get_output(ESP3.output_brightness_2, ESP2.output_brightness_2)
