@@ -62,19 +62,19 @@ WiFiClient laptopClient;
 
 void updateLEDs() {
   for (int i = 0; i < NUM_LEDS1; i++) {
-    leds1[i] = CRGB::Red;
+    leds1[i] = CRGB::White;
     leds1[i].nscale8(brightness1);
   }
   for (int i = 0; i < NUM_LEDS2; i++) {
-    leds2[i] = CRGB::Red;
+    leds2[i] = CRGB::White;
     leds2[i].nscale8(brightness2);
   }
   for (int i = 0; i < NUM_LEDS3; i++) {
-    leds3[i] = CRGB::Red;
+    leds3[i] = CRGB::White;
     leds3[i].nscale8(brightness3);
   }
   for (int i = 0; i < NUM_LEDS4; i++) {
-    leds4[i] = CRGB::Red;
+    leds4[i] = CRGB::White;
     leds4[i].nscale8(brightness4);
   }
   FastLED.show();
@@ -191,10 +191,10 @@ void loop() {
     }
 
       // Now assign to your variables
-    brightness1    = values[0];
-    brightness2    = values[1];
-    brightness3    = values[2];
-    brightness4    = values[3];
+    brightness1    = values[0]/2;
+    brightness2    = values[1]/2;
+    brightness3    = values[2]/2;
+    brightness4    = values[3]/2;
     phaseShift1    = values[4];
     phaseShift2    = values[5];
     entanglement1  = values[6];

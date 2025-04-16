@@ -69,20 +69,20 @@ WiFiUDP udp;
 void updateLEDs() {
   for (int i = 0; i < NUM_LEDS1; i++) {
     int phasShiftbrightness1 = brightness1*(sin8((i + phaseShift1) * 15))/255;
-    leds1[i] = CRGB::Red;
+    leds1[i] = CRGB::White;
     leds1[i].nscale8(phasShiftbrightness1);
   }
   for (int i = 0; i < NUM_LEDS2; i++) {
     int phasShiftbrightness2 = brightness2*(sin8((i + phaseShift2) * 15))/255;
-    leds2[i] = CRGB::Red;
+    leds2[i] = CRGB::White;
     leds2[i].nscale8(phasShiftbrightness2);
   }
   for (int i = 0; i < NUM_LEDS3; i++) {
-    leds3[i] = CRGB::Red;
+    leds3[i] = CRGB::White;
     leds3[i].nscale8(brightness3);
   }
   for (int i = 0; i < NUM_LEDS4; i++) {
-    leds4[i] = CRGB::Red;
+    leds4[i] = CRGB::White;
     leds4[i].nscale8(brightness4);
   }
   FastLED.show();
@@ -183,10 +183,10 @@ void loop() {
     }
 
     // Now assign variables from csv
-    brightness1    = values[0];
-    brightness2    = values[1];
-    brightness3    = values[2];
-    brightness4    = values[3];
+    brightness1    = values[0]/2;
+    brightness2    = values[1]/2;
+    brightness3    = values[2]/2;
+    brightness4    = values[3]/2;
     phaseShift1    = values[4];
     phaseShift2    = values[5];
     entanglement1  = values[6];

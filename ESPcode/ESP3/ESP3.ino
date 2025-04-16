@@ -70,7 +70,7 @@ void updateLEDs() {
   // Phase shifted sine pattern for leds2
   for (int i = 0; i < NUM_LEDS2; i++) {
     int phasShiftbrightness2 = brightness2 * (sin8((i + phaseShift2) * 15)) / 255;
-    leds2[i] = CRGB::Red;
+    leds2[i] = CRGB::White;
     leds2[i].nscale8(phasShiftbrightness2);
   }
 
@@ -95,23 +95,23 @@ void updateLEDs() {
   for (int i = 0; i < maxSparkles; i++) {
     if (random8() < twinkleChance) {
       int pos = random16(NUM_LEDS3);
-      twinkleBuffer[pos] = CRGB::Red;
-      twinkleBuffer[pos].nscale8(brightness3 / 4);
+      twinkleBuffer[pos] = CRGB::White;
+      twinkleBuffer[pos].nscale8(brightness3);
     }
   }
 
   // Blend twinkleBuffer with steady red background
   for (int i = 0; i < NUM_LEDS3; i++) {
-    CRGB glowColor = CRGB::Red;
-    glowColor.nscale8(brightness3 / 4);
+    CRGB glowColor = CRGB::White;
+    glowColor.nscale8(brightness3);
 
     leds3[i] = blend(glowColor, twinkleBuffer[i], fadeAmount * 255);
   }
 
   // Steady brightness for leds4
   for (int i = 0; i < NUM_LEDS4; i++) {
-    leds4[i] = CRGB::Red;
-    leds4[i].nscale8(brightness4 / 4);
+    leds4[i] = CRGB::White;
+    leds4[i].nscale8(brightness4);
   }
 
   FastLED.show();
@@ -212,10 +212,10 @@ void loop() {
     }
 
     // Now assign variables from csv
-    brightness1    = values[0];
-    brightness2    = values[1];
-    brightness3    = values[2];
-    brightness4    = values[3];
+    brightness1    = values[0]/2;
+    brightness2    = values[1]/2;
+    brightness3    = values[2]/2;
+    brightness4    = values[3]/2;
     phaseShift1    = values[4];
     phaseShift2    = values[5];
     entanglement1  = values[6];
