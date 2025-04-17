@@ -40,12 +40,6 @@ class ESPLED:
         strobe1 = None
         strobe2 = None
 
-        # Check for entanglement
-        if 0.3 <= (self.pot_value / 4095) <= 0.7 and input_brightness_1 != 0 and input_brightness_2 != 0:
-            dif = abs(self.pot_value / 4095 - 0.5)
-            self.entanglement = 2*(1 + round(dif * 45))
-        else:
-            self.entanglement = 0
         # Calculate brightness
         if self.id == 3:
             T = self.pot_value/4095
@@ -61,8 +55,12 @@ class ESPLED:
             strip_2_phaseshift = round(phaseVal1, 3)
             #if 0.3 <= (self.pot_value / 4095) <= 0.7 and input_brightness_1 != 0 and input_brightness_2 != 0:
             #    dif = abs(self.pot_value / 4095 - 0.5)
-            self.entanglement = round((2*T*R*(1+math.cos(phaseVal1)))/(1+2*T*R),3)*20
-            entanglement1 = int(self.entanglement)
+            if input_brightness_1 != 0 and input_brightness_2 != 0:
+                self.entanglement = round((2*T*R*(1+math.cos(phaseVal1)))/(1+2*T*R),3)*20
+                entanglement1 = int(self.entanglement)
+            else:
+                self.entanglement = 0
+                entanglement1 = int(self.entanglement)
         elif self.id == 4:
             T1, R1 = input_brightness_1/77, (1-(input_brightness_1/77))
             T2, R2 = (self.pot_value / 4095), (1-(self.pot_value / 4095))
@@ -77,8 +75,15 @@ class ESPLED:
             strip_4_bright = self.output_brightness_2 if self.output_brightness_2 >= 0 else 0
             strip_1_phaseshift = round(phaseVal1, 3)
             strip_2_phaseshift = round(phaseVal2, 3)
-            entanglement1 = int(self.entanglement)
+            if input_brightness_1 != 0 and input_brightness_2 != 0:
+                self.entanglement = round((2 * T2 * R2 * (1 + math.cos(phaseVal1))) / (1 + 2 * T2 * R2), 3) * 20
+                entanglement1 = int(self.entanglement)
+            else:
+                self.entanglement = 0
+                entanglement1 = int(self.entanglement)
         else:
+            T = self.pot_value / 4095
+            R = 1 - self.pot_value / 4095
             total_brightness = input_brightness_1 + input_brightness_2
             alpha = self.pot_value / 4095
 
@@ -89,7 +94,12 @@ class ESPLED:
             strip_2_bright = input_brightness_2 if input_brightness_2 >= 0 else 0
             strip_3_bright = self.output_brightness_1 if self.output_brightness_1 >= 0 else 0
             strip_4_bright = self.output_brightness_2 if self.output_brightness_2 >= 0 else 0
-            entanglement1 = int(self.entanglement)
+            if input_brightness_1 != 0 and input_brightness_2 != 0:
+                self.entanglement = round((2 * T * R) / (1 + 2 * T * R), 3) * 20
+                entanglement1 = int(self.entanglement)
+            else:
+                self.entanglement = 0
+                entanglement1 = int(self.entanglement)
 
         # Pharse output data
         # Create the row in the correct fixed order
