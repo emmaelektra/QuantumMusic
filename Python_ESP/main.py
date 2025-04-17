@@ -67,9 +67,12 @@ def handle_esps(udp_socket):
         else:
             print(f"❌ Unknown esp_id: {esp_id}")
             continue
-        #print(f"📡 Data from ESP3: {ESP3.pot_value/4095, ESP3.entanglement}")
-        print(f"📡 Data from ESP4: {ESP4.pot_value/4095, ESP4.entanglement}")
-        #print(f"📡 Data from ESP5: Decoded: {decoded} ESP5 Output1: {ESP5.output_brightness_1}, Output2: {ESP5.output_brightness_2}")
+        print(f"📡 Data from ESP2: {ESP2.output_brightness_2}")
+        print(f"📡 Data from ESP3: {ESP3.pot_value/4095, ESP3.entanglement}")
+        #print(f"📡 Data from ESP4: {ESP4.pot_value/4095, ESP4.entanglement}")
+        print(f"📡 Data from ESP5: Decoded: {ESP5.entanglement}")
+        if ESP2.output_brightness_2 == 0 and ESP3.entanglement != 0:
+            print("ESP5 repeated")
         #print(f"📡 Data from ESP6: {ESP6.response_data}, Decoded: {decoded}, ESP6 Input 1: {ESP4.output_brightness_2} Input 2: {ESP5.output_brightness_1} Output1: {ESP6.output_brightness_1}, Output2: {ESP6.output_brightness_2}")
     #print(ESP3.response_data)
 
@@ -77,12 +80,12 @@ def calculate_logic():
     """Calculates brightness values based on received ESP data."""
     while True:
         try:
-            ESP1.get_output(channel_1_brightness, channel_2_brightness)
-            ESP2.get_output(channel_3_brightness, channel_4_brightness)
-            ESP3.get_output(ESP1.output_brightness_2, ESP2.output_brightness_1)
-            ESP4.get_output(ESP1.output_brightness_1, ESP3.output_brightness_1)
-            ESP5.get_output(ESP3.output_brightness_2, ESP2.output_brightness_2)
-            ESP6.get_output(ESP4.output_brightness_2, ESP5.output_brightness_1)
+            ESP1.get_output(channel_1_brightness, channel_2_brightness, 0, 0)
+            ESP2.get_output(channel_3_brightness, channel_4_brightness, 0, 0)
+            ESP3.get_output(ESP1.output_brightness_2, ESP2.output_brightness_1, ESP1.entanglement, ESP2.entanglement)
+            ESP4.get_output(ESP1.output_brightness_1, ESP3.output_brightness_1, ESP1.entanglement, ESP3.entanglement)
+            ESP5.get_output(ESP3.output_brightness_2, ESP2.output_brightness_2, ESP2.entanglement, ESP3.entanglement)
+            ESP6.get_output(ESP4.output_brightness_2, ESP5.output_brightness_1, ESP4.entanglement, ESP5.entanglement)
             # (Additional logic for other ESPs can be enabled as needed)
             time.sleep(0.0001)  # Prevent excessive CPU usage
         except Exception as e:

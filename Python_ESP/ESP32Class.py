@@ -25,7 +25,7 @@ class ESPLED:
         self.output_brightness_2 = 0
         self.entanglement = 0
     
-    def get_output(self, input_brightness_1, input_brightness_2):
+    def get_output(self, input_brightness_1, input_brightness_2, previous_entanglement1, previous_entanglement2):
         # Initialise output variables
         strip_1_bright = input_brightness_1
         strip_2_bright = input_brightness_2
@@ -42,25 +42,39 @@ class ESPLED:
 
         # Calculate brightness
         if self.id == 3:
-            T = self.pot_value/4095
-            R = 1-self.pot_value/4095
+            T = self.pot_value / 4095
+            R = 1 - self.pot_value / 4095
+            total_brightness = input_brightness_1 + input_brightness_2
             phaseVal1 = (self.pot_value_ps_1 / 4095) * 2 * math.pi
-            self.output_brightness_1 = int((input_brightness_1 + input_brightness_2) * T)
-            self.output_brightness_2 = int((input_brightness_1 + input_brightness_2) * R)
+            self.output_brightness_1 = int(total_brightness* T)
+            self.output_brightness_2 = int(input_brightness_1 + input_brightness_2 * R)
             # Update output data
             strip_1_bright = input_brightness_1 if input_brightness_1 >= 0 else 0
             strip_2_bright = input_brightness_2 if input_brightness_2 >= 0 else 0
             strip_3_bright = self.output_brightness_1 if self.output_brightness_1 >= 0 else 0
             strip_4_bright = self.output_brightness_2 if self.output_brightness_2 >= 0 else 0
             strip_2_phaseshift = round(phaseVal1, 3)
-            #if 0.3 <= (self.pot_value / 4095) <= 0.7 and input_brightness_1 != 0 and input_brightness_2 != 0:
-            #    dif = abs(self.pot_value / 4095 - 0.5)
+
+            # Entanglement logic
             if input_brightness_1 != 0 and input_brightness_2 != 0:
                 self.entanglement = round((2*T*R*(1+math.cos(phaseVal1)))/(1+2*T*R),3)*20
                 entanglement1 = int(self.entanglement)
             else:
                 self.entanglement = 0
                 entanglement1 = int(self.entanglement)
+
+            # Previous entanglement
+            if (previous_entanglement1 != 0 and input_brightness_2 == 0) or (
+                    previous_entanglement2 != 0 and input_brightness_1 == 0):
+                denominator = (T ** 2 - R ** 2) ** 2 + 4 * T ** 2 * R ** 2
+                if denominator != 0:
+                    pure_entanglement = (T ** 2 - R ** 2) ** 2 / denominator
+                    self.entanglement = 20 * pure_entanglement
+                    entanglement1 = int(self.entanglement)
+                else:
+                    self.entanglement = 0
+                    entanglement1 = int(self.entanglement)
+
         elif self.id == 4:
             T1, R1 = input_brightness_1/77, (1-(input_brightness_1/77))
             T2, R2 = (self.pot_value / 4095), (1-(self.pot_value / 4095))
@@ -75,31 +89,59 @@ class ESPLED:
             strip_4_bright = self.output_brightness_2 if self.output_brightness_2 >= 0 else 0
             strip_1_phaseshift = round(phaseVal1, 3)
             strip_2_phaseshift = round(phaseVal2, 3)
+
+            # Entanglement logic
             if input_brightness_1 != 0 and input_brightness_2 != 0:
                 self.entanglement = round((2 * T2 * R2 * (1 + math.cos(phaseVal1))) / (1 + 2 * T2 * R2), 3) * 20
                 entanglement1 = int(self.entanglement)
             else:
                 self.entanglement = 0
                 entanglement1 = int(self.entanglement)
+
+            # Previous entanglement
+            if (previous_entanglement1 != 0 and input_brightness_2 == 0) or (
+                    previous_entanglement2 != 0 and input_brightness_1 == 0):
+                denominator = (T2 ** 2 - R2 ** 2) ** 2 + 4 * T2 ** 2 * R2 ** 2
+                if denominator != 0:
+                    pure_entanglement = (T2 ** 2 - R2 ** 2) ** 2 / denominator
+                    self.entanglement = 20 * pure_entanglement
+                    entanglement1 = int(self.entanglement)
+                else:
+                    self.entanglement = 0
+                    entanglement1 = int(self.entanglement)
+
         else:
             T = self.pot_value / 4095
             R = 1 - self.pot_value / 4095
             total_brightness = input_brightness_1 + input_brightness_2
-            alpha = self.pot_value / 4095
 
-            self.output_brightness_1 = int(total_brightness * alpha)
-            self.output_brightness_2 = int(total_brightness * (1 - alpha))
+            self.output_brightness_1 = int(total_brightness * T)
+            self.output_brightness_2 = int(total_brightness * R)
             # Update output data
             strip_1_bright = input_brightness_1 if input_brightness_1 >= 0 else 0
             strip_2_bright = input_brightness_2 if input_brightness_2 >= 0 else 0
             strip_3_bright = self.output_brightness_1 if self.output_brightness_1 >= 0 else 0
             strip_4_bright = self.output_brightness_2 if self.output_brightness_2 >= 0 else 0
+
+            # Entanglement logic
             if input_brightness_1 != 0 and input_brightness_2 != 0:
                 self.entanglement = round((2 * T * R) / (1 + 2 * T * R), 3) * 20
                 entanglement1 = int(self.entanglement)
             else:
                 self.entanglement = 0
                 entanglement1 = int(self.entanglement)
+
+            # Previous entanglement
+            if (previous_entanglement1 != 0 and input_brightness_2 == 0) or (
+                    previous_entanglement2 != 0 and input_brightness_1 == 0):
+                denominator = (T ** 2 - R ** 2) ** 2 + 4 * T ** 2 * R ** 2
+                if denominator != 0:
+                    pure_entanglement = (T ** 2 - R ** 2) ** 2 / denominator
+                    self.entanglement = 20 * pure_entanglement
+                    entanglement1 = int(self.entanglement)
+                else:
+                    self.entanglement = 0
+                    entanglement1 = int(self.entanglement)
 
         # Pharse output data
         # Create the row in the correct fixed order
