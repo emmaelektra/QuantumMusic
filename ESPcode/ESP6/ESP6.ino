@@ -61,7 +61,7 @@ WiFiUDP udp;
 
 void updateLEDs() {
   // Entanglement on strips 3 and 4
-  int sparkleBoost = map(entanglement1, 0, 15, 0, 255);
+  int sparkleBoost = map(entanglement1, 0, 20, 0, 255);
   fadeToBlackBy(leds3, NUM_LEDS3, thisfade);
   fadeToBlackBy(leds4, NUM_LEDS4, thisfade);
 
@@ -76,9 +76,9 @@ void updateLEDs() {
   fill_solid(twinkleBuffer4, NUM_LEDS4, CRGB::Black);
 
   // Twinkle logic based on entanglement
-  int maxSparkles3 = map(entanglement1, 1, 15, NUM_LEDS3 / 1.5, NUM_LEDS3 / 30);
-  int maxSparkles4 = map(entanglement1, 1, 15, NUM_LEDS4 / 1.5, NUM_LEDS4 / 30);
-  int twinkleChance = map(entanglement1, 1, 15, 1, 20);
+  int maxSparkles3 = map(entanglement1, 1, 20, NUM_LEDS3 / 1.5, NUM_LEDS3 / 30);
+  int maxSparkles4 = map(entanglement1, 1, 20, NUM_LEDS4 / 1.5, NUM_LEDS4 / 30);
+  int twinkleChance = map(entanglement1, 1, 20, 1, 20);
 
   for (int i = 0; i < maxSparkles3; i++) {
     if (random8() < twinkleChance) {

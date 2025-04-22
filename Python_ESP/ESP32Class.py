@@ -99,8 +99,10 @@ class ESPLED:
                 self.entanglement = 0
 
         # Previous entanglement for all ESPs
-        if (self.previous_entanglement1 != 0 and input_brightness_1 == 0) or (self.previous_entanglement2 != 0 and input_brightness_2 == 0):
+        if (self.previous_entanglement1 != 0 and input_brightness_2 == 0) or (self.previous_entanglement2 != 0 and input_brightness_1 == 0):
             denominator = (T ** 2 - R ** 2) ** 2 + 4 * T ** 2 * R ** 2
+            #if self.id == 4:
+            #    print(denominator)
             if denominator != 0:
                 pure_entanglement = (T ** 2 - R ** 2) ** 2 / denominator
                 self.entanglement = 20 * pure_entanglement
