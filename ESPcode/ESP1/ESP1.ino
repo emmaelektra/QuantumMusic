@@ -100,12 +100,12 @@ void updateLEDs() {
     }
   }
 
-  // Blend twinkleBuffer with steady white background
+  /// Blend twinkleBuffer with steady white background
   for (int i = 0; i < NUM_LEDS3; i++) {
     CRGB glowColor = CRGB::White;
     glowColor.nscale8(brightness3);
-
-    leds3[i] = blend(glowColor, twinkleBuffer3[i], fadeAmount * 255);
+    leds3[i] = glowColor;  
+    leds3[i] += twinkleBuffer3[i];  
   }
 
     for (int i = 0; i < maxSparkles4; i++) {
@@ -119,7 +119,8 @@ void updateLEDs() {
   for (int i = 0; i < NUM_LEDS4; i++) {
     CRGB glowColor = CRGB::White;
     glowColor.nscale8(brightness4);
-    leds4[i] = blend(glowColor, twinkleBuffer4[i], fadeAmount * 255);
+    leds4[i] = glowColor;
+    leds4[i] += twinkleBuffer4[i];
   }
   FastLED.show();
 }

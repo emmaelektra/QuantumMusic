@@ -19,6 +19,9 @@ class ESPLED:
         #elif self.id == 4:
         #self.pot_value_ps_1 = None
         self.pot_value_ps_2 = pot_value_ps_2
+
+        self.phaseVal1 = 0
+        self.phaseVal2 = 0
         
         self.response_data = None
         self.input_brightness_1 = 0
@@ -27,6 +30,8 @@ class ESPLED:
         self.output_brightness_2 = 0
         self.entanglement = 0
         self.entanglement2 = 0
+        self.previous_entanglement1 = 0
+        self.previous_entanglement2 = 0
         self.pulse1 = None
         self.pulse2 = None
         """self.pulse1_start = None
@@ -41,6 +46,17 @@ class ESPLED:
         # Initialise output variables
         self.input_brightness_1 = input_brightness_1
         self.input_brightness_2 = input_brightness_2
+        self.previous_entanglement1 = previous_entanglement1
+        self.previous_entanglement2 = previous_entanglement2
+
+        # Update output data
+        self.input_brightness_1 = input_brightness_1 if input_brightness_1 >= 0 else 0
+        self.input_brightness_2 = input_brightness_2 if input_brightness_2 >= 0 else 0
+
+        # Update transmissivness and reflectivness
+        T, R = (self.pot_value / 4095), (1 - (self.pot_value / 4095))
+
+        total_brightness = self.input_brightness_1 + self.input_brightness_2
 
         """# Pulse logic
         if input_pulse1_done == True and input_pulse2_done == True:
@@ -49,72 +65,32 @@ class ESPLED:
 
         # Calculate brightness
         if self.id == 3:
-            T = self.pot_value / 4095
-            R = 1 - self.pot_value / 4095
-            total_brightness = input_brightness_1 + input_brightness_2
-            phaseVal1 = (self.pot_value_ps_1 / 4095) * 2 * math.pi
-            self.output_brightness_1 = int(total_brightness* T) if self.output_brightness_1 >= 0 else 0
-            self.output_brightness_2 = int(input_brightness_1 + input_brightness_2 * R) if self.output_brightness_2 >= 0 else 0
-            # Update output data
-            self.input_brightness_1 = input_brightness_1 if input_brightness_1 >= 0 else 0
-            self.input_brightness_2 = input_brightness_2 if input_brightness_2 >= 0 else 0
-            self.pot_value_ps_2 = round(phaseVal1, 3)
+            self.phaseVal2 = round(((self.pot_value_ps_1 / 4095) * 2 * math.pi), 3)
+            self.output_brightness_1 = int(total_brightness * T) if self.output_brightness_1 >= 0 else 0
+            self.output_brightness_2 = int(total_brightness * R) if self.output_brightness_2 >= 0 else 0
 
             # Entanglement logic
             if input_brightness_1 != 0 and input_brightness_2 != 0:
-                self.entanglement = round((2*T*R*(1+math.cos(phaseVal1)))/(1+2*T*R),3)*20
+                self.entanglement = round((2*T*R*(1+math.cos(self.phaseVal1)))/(1+2*T*R),3)*20
             else:
                 self.entanglement = 0
-
-            # Previous entanglement
-            if (previous_entanglement1 != 0 and input_brightness_2 == 0) or (
-                    previous_entanglement2 != 0 and input_brightness_1 == 0):
-                denominator = (T ** 2 - R ** 2) ** 2 + 4 * T ** 2 * R ** 2
-                if denominator != 0:
-                    pure_entanglement = (T ** 2 - R ** 2) ** 2 / denominator
-                    self.entanglement = 20 * pure_entanglement
-                else:
-                    self.entanglement = 0
 
         elif self.id == 4:
             T1, R1 = input_brightness_1/77, (1-(input_brightness_1/77))
-            T2, R2 = (self.pot_value / 4095), (1-(self.pot_value / 4095))
-            phaseVal1 = (self.pot_value_ps_1 / 4095) * 2 * math.pi
-            phaseVal2 = (self.pot_value_ps_2 / 4095) * 2 * math.pi
-            self.output_brightness_1 = int((T1 * (T1*T2 + R1*R2 - (2 * math.cos(phaseVal1-phaseVal2) * math.sqrt(T1*T2*R1*R2))) + input_brightness_2/77 * (T1*T2 + R1*R2 - (2 * math.cos(phaseVal1-phaseVal2) * math.sqrt(T1*T2*R1*R2))))*77) if self.output_brightness_1 >= 0 else 0
-            self.output_brightness_2 = int((T1 * (T1*R2 + R1*T2 + (2 * math.cos(phaseVal1-phaseVal2) * math.sqrt(T1*T2*R1*R2))) + input_brightness_2/77 * (T1*R2 + R1*T2 + (2 * math.cos(phaseVal1-phaseVal2) * math.sqrt(T1*T2*R1*R2))))*77) if self.output_brightness_2 >= 0 else 0
-            # Update output data
-            self.input_brightness_1 = input_brightness_1 if input_brightness_1 >= 0 else 0
-            self.input_brightness_2 = input_brightness_2 if input_brightness_2 >= 0 else 0
-            self.pot_value_ps_1 = round(phaseVal1, 3)
-            self.pot_value_ps_2 = round(phaseVal2, 3)
+            self.phaseVal1 = round(((self.pot_value_ps_1 / 4095) * 2 * math.pi), 3)
+            self.phaseVal2 = round(((self.pot_value_ps_2 / 4095) * 2 * math.pi), 3)
+            self.output_brightness_1 = int((T1 * (T1*T + R1*R - (2 * math.cos(self.phaseVal1-self.phaseVal2) * math.sqrt(T1*T*R1*R))) + input_brightness_2/77 * (T1*T + R1*R - (2 * math.cos(self.phaseVal1-self.phaseVal2) * math.sqrt(T1*T*R1*R))))*77) if self.output_brightness_1 >= 0 else 0
+            self.output_brightness_2 = int((T1 * (T1*R + R1*T + (2 * math.cos(self.phaseVal1-self.phaseVal2) * math.sqrt(T1*T*R1*R))) + input_brightness_2/77 * (T1*R + R1*T + (2 * math.cos(self.phaseVal1-self.phaseVal2) * math.sqrt(T1*T*R1*R))))*77) if self.output_brightness_2 >= 0 else 0
 
             # Entanglement logic
             if input_brightness_1 != 0 and input_brightness_2 != 0:
-                self.entanglement = round((2 * T2 * R2 * (1 + math.cos(phaseVal1))) / (1 + 2 * T2 * R2), 3) * 20
+                self.entanglement = round((2 * T * R * (1 + math.cos(self.phaseVal1 - self.phaseVal2))) / (1 + 2 * T * R), 3) * 20
             else:
                 self.entanglement = 0
 
-            # Previous entanglement
-            if (previous_entanglement1 != 0 and input_brightness_2 == 0) or (
-                    previous_entanglement2 != 0 and input_brightness_1 == 0):
-                denominator = (T2 ** 2 - R2 ** 2) ** 2 + 4 * T2 ** 2 * R2 ** 2
-                if denominator != 0:
-                    pure_entanglement = (T2 ** 2 - R2 ** 2) ** 2 / denominator
-                    self.entanglement = 20 * pure_entanglement
-                else:
-                    self.entanglement = 0
-
         else:
-            T = self.pot_value / 4095
-            R = 1 - self.pot_value / 4095
-            total_brightness = input_brightness_1 + input_brightness_2
-
             self.output_brightness_1 = int(total_brightness * T) if self.output_brightness_1 >= 0 else 0
             self.output_brightness_2 = int(total_brightness * R) if self.output_brightness_2 >= 0 else 0
-            # Update output data
-            self.input_brightness_1 = input_brightness_1 if input_brightness_1 >= 0 else 0
-            self.input_brightness_2 = input_brightness_2 if input_brightness_2 >= 0 else 0
 
             # Entanglement logic
             if input_brightness_1 != 0 and input_brightness_2 != 0:
@@ -122,15 +98,14 @@ class ESPLED:
             else:
                 self.entanglement = 0
 
-            # Previous entanglement
-            if (previous_entanglement1 != 0 and input_brightness_2 == 0) or (
-                    previous_entanglement2 != 0 and input_brightness_1 == 0):
-                denominator = (T ** 2 - R ** 2) ** 2 + 4 * T ** 2 * R ** 2
-                if denominator != 0:
-                    pure_entanglement = (T ** 2 - R ** 2) ** 2 / denominator
-                    self.entanglement = 20 * pure_entanglement
-                else:
-                    self.entanglement = 0
+        # Previous entanglement for all ESPs
+        if (self.previous_entanglement1 != 0 and input_brightness_1 == 0) or (self.previous_entanglement2 != 0 and input_brightness_2 == 0):
+            denominator = (T ** 2 - R ** 2) ** 2 + 4 * T ** 2 * R ** 2
+            if denominator != 0:
+                pure_entanglement = (T ** 2 - R ** 2) ** 2 / denominator
+                self.entanglement = 20 * pure_entanglement
+            else:
+                self.entanglement = 0
 
         # Pharse output data
         # Create the row in the correct fixed order
@@ -139,8 +114,8 @@ class ESPLED:
             self.input_brightness_2,
             self.output_brightness_1,
             self.output_brightness_2,
-            self.pot_value_ps_1,
-            self.pot_value_ps_2,
+            self.phaseVal1,
+            self.phaseVal2,
             self.entanglement,
             self.entanglement2,
             self.pulse1,
