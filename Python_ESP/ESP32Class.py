@@ -14,11 +14,11 @@ class ESPLED:
         self.id = id
         self.pot_value = pot_value
         # Only initialize these variables if self.id == 4
-        if self.id == 3:
-            self.pot_value_ps_1 = pot_value_ps_1
-        elif self.id == 4:
-            self.pot_value_ps_1 = pot_value_ps_1
-            self.pot_value_ps_2 = pot_value_ps_2
+        #if self.id == 3:
+        self.pot_value_ps_1 = pot_value_ps_1
+        #elif self.id == 4:
+        #self.pot_value_ps_1 = None
+        self.pot_value_ps_2 = pot_value_ps_2
         
         self.response_data = None
         self.input_brightness_1 = 0
@@ -37,15 +37,15 @@ class ESPLED:
         self.strobe1 = None
         self.strobe2 = None
     
-    def get_output(self, input_brightness_1, input_brightness_2, previous_entanglement1, previous_entanglement2, input_pulse1_done, input_pulse2_done):
+    def get_output(self, input_brightness_1, input_brightness_2, previous_entanglement1, previous_entanglement2):#, input_pulse1_done, input_pulse2_done):
         # Initialise output variables
         self.input_brightness_1 = input_brightness_1
         self.input_brightness_2 = input_brightness_2
 
-        # Pulse logic
+        """# Pulse logic
         if input_pulse1_done == True and input_pulse2_done == True:
             self.pulse1_start = True
-            self.pulse2_start = True
+            self.pulse2_start = True"""
 
         # Calculate brightness
         if self.id == 3:
