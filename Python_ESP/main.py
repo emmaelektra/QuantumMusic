@@ -10,6 +10,9 @@ channel_2_brightness = 0
 channel_3_brightness = 77
 channel_4_brightness = 0
 
+total_pulse_time = 10
+refresh_rate = total_pulse_time/5000
+
 # Define ESP instances explicitly
 ESP1 = ESPLED("192.168.4.3", 1, 2000)
 ESP2 = ESPLED("192.168.4.4", 2, 2000)
@@ -67,9 +70,10 @@ def handle_esps(udp_socket):
         else:
             print(f"❌ Unknown esp_id: {esp_id}")
             continue
-        #print(f"📡 Data from ESP2: {ESP2.output_brightness_2}")
+
+        #print(f"📡 Data from ESP2: {ESP2.refresh_rate}")
         #print(f"📡 Data from ESP3: {ESP3.output_brightness_1, ESP3.output_brightness_2}")
-        print(f"📡 Data from ESP4: {ESP4.entanglement}")
+        #print(f"📡 Data from ESP4: {ESP4.entanglement}")
         #print({decoded})
         #print(f"📡 Data from ESP5: {ESP5.output_brightness_1, ESP5.output_brightness_2, ESP5.entanglement, ESP5.previous_entanglement1, ESP5.previous_entanglement2}")
         #if ESP2.output_brightness_2 == 0 and ESP3.entanglement != 0:
@@ -81,23 +85,60 @@ def calculate_logic():
     """Calculates brightness values based on received ESP data."""
     while True:
         try:
-            ESP1.get_output(channel_1_brightness, channel_2_brightness, 0, 0)#, None, None)
-            ESP2.get_output(channel_3_brightness, channel_4_brightness, 0, 0)#, None, None)
-            ESP3.get_output(ESP1.output_brightness_2, ESP2.output_brightness_1, ESP1.entanglement, ESP2.entanglement)#, ESP1.pulse2_done, ESP2.pulse1_done)
-            ESP4.get_output(ESP1.output_brightness_1, ESP3.output_brightness_1, ESP1.entanglement, ESP3.entanglement)#, ESP1.pulse1_done, ESP3.pulse1_done)
-            ESP5.get_output(ESP3.output_brightness_2, ESP2.output_brightness_2, ESP3.entanglement, ESP2.entanglement)#, ESP3.pulse1_done, ESP2.pulse2_done)
-            ESP6.get_output(ESP4.output_brightness_2, ESP5.output_brightness_1, ESP4.entanglement, ESP5.entanglement)#, ESP4.pulse2_done, ESP5.pulse1_done)
+            ESP1.get_output(channel_1_brightness, channel_2_brightness, 0, 0)
+            ESP2.get_output(channel_3_brightness, channel_4_brightness, 0, 0)
+            ESP3.get_output(ESP1.output_brightness_2, ESP2.output_brightness_1, ESP1.entanglement, ESP2.entanglement)
+            ESP4.get_output(ESP1.output_brightness_1, ESP3.output_brightness_1, ESP1.entanglement, ESP3.entanglement)
+            ESP5.get_output(ESP3.output_brightness_2, ESP2.output_brightness_2, ESP3.entanglement, ESP2.entanglement)
+            ESP6.get_output(ESP4.output_brightness_2, ESP5.output_brightness_1, ESP4.entanglement, ESP5.entanglement)
             # (Additional logic for other ESPs can be enabled as needed)
             time.sleep(0.0001)  # Prevent excessive CPU usage
         except Exception as e:
             print(f"❌ Error in logic calculation: {e}")
 
+
+def calculate_pulse(total_pulse_time, refresh_rate):
+    current_time = 0
+    time_per_pixel = (total_pulse_time)/(1000) # 1000 for 5x200 pixels full length
+    #refresh_rate = 1/time_per_pixel
+    #esp_pixel_per_second = 1/refresh_rate
+    ESP1.refresh_rate = ESP2.refresh_rate = time_per_pixel
+    current_pixel = 0
+    while True:
+        if current_time <= time_per_pixel * 400:
+            ESP1.pulse_start = current_pixel
+        else:
+            ESP1.pulse_start = -1
+        if current_time <= time_per_pixel * 600:
+            ESP2.pulse_start = current_pixel
+        else:
+            ESP2.pulse_start = -1
+        if time_per_pixel * 600 >= current_time >= time_per_pixel * 300:
+            ESP3.pulse_start = current_pixel
+        else:
+            ESP3.pulse_start = -1
+        if time_per_pixel * 400 <= current_time <= time_per_pixel * 1000:
+            ESP4.pulse_start = current_pixel
+        else:
+            ESP4.pulse_start = -1
+        current_time = current_time + time_per_pixel
+        current_pixel = current_pixel + 1
+
+        print(current_time)
+        print(ESP1.pulse_start)
+        if current_time > total_pulse_time:
+            current_time = 0
+            current_pixel = 0
+        time.sleep(time_per_pixel)
+
 # Start connection handling and logic calculation in separate threads.
 udp_socket.bind(("0.0.0.0", udp_port))
 thread1 = threading.Thread(target=handle_esps, args=(udp_socket,),  daemon=True)
 thread2 = threading.Thread(target=calculate_logic, daemon=True)
+thread3 = threading.Thread(target=calculate_pulse, args=(total_pulse_time, refresh_rate ),  daemon=True)
 thread1.start()
 thread2.start()
+thread3.start()
 
 # Keep the main thread alive.
 try:

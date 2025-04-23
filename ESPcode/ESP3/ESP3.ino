@@ -42,7 +42,7 @@ float phaseShift1 = 0;
 float phaseShift2 = 0;
 float entanglement1 = 0;
 float entanglement2  = 0;
-uint8_t pulse1 = 0;
+int pulse1 = 0;
 uint8_t pulse2 = 0;
 uint8_t strobe1 = 0;
 uint8_t strobe2 = 0;
@@ -63,6 +63,9 @@ unsigned long lastUpdateTimeLED = 0;
 int thisfade = 1;
 //float sparkleBoost = 1.0 + pow(entanglement1 / 15.0, 1.5) * 6.0;  // 1.0 → 3.0 range
 //float sparkleBoost = map(entanglement1, 1, 15, 130, 255) / 100.0;  // range: 1.3 to 2.55 (alternative mapping)
+
+// Pulse parameters
+int pulse_bright = 50;
 
 WiFiClient laptopClient;
 WiFiUDP udp;
@@ -128,6 +131,23 @@ void updateLEDs() {
     leds4[i] = glowColor;
     leds4[i] += twinkleBuffer4[i];
   }
+
+  if (300 < pulse1 < 600  && pulse1 != -1) {
+    int currentpixel = pulse1 - 300;
+    if (currentpixel < 100){
+      leds2[100-currentpixel] = CRGB::White;
+      leds2[100-currentpixel].nscale8(brightness2+pulse_bright);
+    }
+    if(currentpixel >= 100 && currentpixel < 200){
+      leds3[currentpixel-100] = CRGB::White;
+      leds3[currentpixel-100].nscale8(brightness3+pulse_bright);
+    }
+    if (currentpixel >= 100 && currentpixel < 300){
+      leds4[currentpixel-100] = CRGB::White;
+      leds4[currentpixel-100].nscale8(brightness4+pulse_bright);
+    }
+  }
+
   FastLED.show();
 }
 

@@ -13,11 +13,7 @@ class ESPLED:
         self.ip = ip
         self.id = id
         self.pot_value = pot_value
-        # Only initialize these variables if self.id == 4
-        #if self.id == 3:
         self.pot_value_ps_1 = pot_value_ps_1
-        #elif self.id == 4:
-        #self.pot_value_ps_1 = None
         self.pot_value_ps_2 = pot_value_ps_2
 
         self.phaseVal1 = 0
@@ -32,13 +28,10 @@ class ESPLED:
         self.entanglement2 = 0
         self.previous_entanglement1 = 0
         self.previous_entanglement2 = 0
-        self.pulse1 = None
-        self.pulse2 = None
-        """self.pulse1_start = None
-        self.pulse2_start = None
-        self.pulse1_done = None
-        self.pulse2_done = None
-        """
+        #self.pulse1 = None
+        #self.pulse2 = None
+        self.pulse_start = None
+        self.refresh_rate = None
         self.strobe1 = None
         self.strobe2 = None
     
@@ -57,11 +50,6 @@ class ESPLED:
         T, R = (self.pot_value / 4095), (1 - (self.pot_value / 4095))
 
         total_brightness = self.input_brightness_1 + self.input_brightness_2
-
-        """# Pulse logic
-        if input_pulse1_done == True and input_pulse2_done == True:
-            self.pulse1_start = True
-            self.pulse2_start = True"""
 
         # Calculate brightness
         if self.id == 3:
@@ -120,8 +108,8 @@ class ESPLED:
             self.phaseVal2,
             self.entanglement,
             self.entanglement2,
-            self.pulse1,
-            self.pulse2,
+            self.pulse_start,
+            self.refresh_rate,
             self.strobe1,
             self.strobe2
         ]

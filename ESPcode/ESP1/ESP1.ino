@@ -42,8 +42,8 @@ float phaseShift1 = 0;
 float phaseShift2 = 0;
 float entanglement1 = 0;
 float entanglement2  = 0;
-uint8_t pulse1 = 0;
-uint8_t pulse2 = 0;
+int pulse1 = 0;
+float refreshrate = 0.002;
 uint8_t strobe1 = 0;
 uint8_t strobe2 = 0;
 
@@ -55,13 +55,18 @@ static int lastPotValue = -1;
 
 // Global variable to track last update
 unsigned long lastUpdateTimeOTA = 0;
-unsigned long lastUpdateTimePOT = 10;
+unsigned long lastUpdateTimePOT = 0;
 unsigned long lastUpdateTimeLED = 0;  
+unsigned long lastUpdateRecieve = 0;
 
 //Entanglement parameters
 int thisfade = 1;
 
+// Pulse parameters
+int pulse_bright = 50;
+
 WiFiClient laptopClient;
+WiFiUDP udp;
 
 void updateLEDs() {
   for (int i = 0; i < NUM_LEDS1; i++) {
@@ -122,24 +127,24 @@ void updateLEDs() {
     leds4[i] = glowColor;
     leds4[i] += twinkleBuffer4[i];
   }
+  
+  if (pulse1 < 400  && pulse1 != -1) {
+    int currentpixel = pulse1;
+    if (currentpixel < 200){
+      leds1[200-currentpixel] = CRGB::White;
+      leds1[200-currentpixel].nscale8(brightness1+pulse_bright);
+      leds2[200-currentpixel] = CRGB::White;
+      leds2[200-currentpixel].nscale8(brightness2+pulse_bright);
+    }
+    if (currentpixel >= 200 && currentpixel < 400){
+      leds3[currentpixel-200] = CRGB::White;
+      leds3[currentpixel-200].nscale8(brightness3+pulse_bright);
+      leds4[currentpixel-200] = CRGB::White;
+      leds4[currentpixel-200].nscale8(brightness4+pulse_bright);
+    }
+  }
   FastLED.show();
 }
-
-bool connectToLaptop() {
-  if (laptopClient.connected()) {
-    return true;
-  }
-  Serial.print("[ESP1] Connecting to laptop...");
-  if (laptopClient.connect(LAPTOP_IP, 80)) {
-    Serial.println("Connected.");
-    return true;
-  } else {
-    Serial.println("Connection failed.");
-    return false;
-  }
-}
-
-WiFiUDP udp;
 
 void setup() {
   Serial.begin(115200);
@@ -202,8 +207,8 @@ void loop() {
   }
 
   // Recieve data over UDP and update strip
-  if (millis() - lastUpdateTimeLED >= 20) {
-    lastUpdateTimeLED = millis();
+  if (millis() - lastUpdateRecieve >= 10) {
+    lastUpdateRecieve = millis();
     int packetSize = udp.parsePacket();
     if (packetSize) {
       int len = udp.read(incomingPacket, 255);
@@ -245,7 +250,7 @@ void loop() {
     entanglement1  = values[6];
     entanglement2  = values[7];
     pulse1         = values[8];
-    pulse2         = values[9];
+    refreshrate    = values[9] * 100;
     strobe1        = values[10];
     strobe2        = values[11];
     updateLEDs();

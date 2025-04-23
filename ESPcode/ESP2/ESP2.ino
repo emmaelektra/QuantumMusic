@@ -42,8 +42,8 @@ float phaseShift1 = 0;
 float phaseShift2 = 0;
 float entanglement1 = 0;
 float entanglement2  = 0;
-uint8_t pulse1 = 0;
-uint8_t pulse2 = 0;
+int pulse1 = 0;
+float refreshrate = 0.002;
 uint8_t strobe1 = 0;
 uint8_t strobe2 = 0;
 
@@ -58,9 +58,13 @@ static int lastPotValue = -1;
 unsigned long lastUpdateTimeOTA = 0;
 unsigned long lastUpdateTimePOT = 0;
 unsigned long lastUpdateTimeLED = 0;
+unsigned long lastUpdateRecieve = 0;
 
 //Entanglement parameters
 int thisfade = 1;
+
+// Pulse parameters
+int pulse_bright = 50;
 
 WiFiClient laptopClient;
 WiFiUDP udp;
@@ -124,6 +128,29 @@ void updateLEDs() {
     leds4[i] = glowColor;
     leds4[i] += twinkleBuffer4[i];
   }
+
+  if (pulse1 < 600 && pulse1 != -1) {
+    int currentpixel = pulse1;
+    if (currentpixel < 200){
+      int pix = 200-(int)currentpixel;
+      leds1[pix] = CRGB::White;
+      leds1[pix].nscale8(brightness1+pulse_bright);
+      leds2[pix] = CRGB::White;
+      leds2[pix].nscale8(brightness2+pulse_bright);
+    }
+    if (currentpixel >= 200 && currentpixel < 300){
+      int pix = (int)currentpixel-200;
+      leds3[pix] = CRGB::White;
+      leds3[pix].nscale8(brightness3+pulse_bright);
+      leds4[pix] = CRGB::White;
+      leds4[pix].nscale8(brightness4+pulse_bright);
+    }
+    if (currentpixel >= 300 && currentpixel < 600){
+      int pix = (int)currentpixel-200;
+      leds4[pix] = CRGB::White;
+      leds4[pix].nscale8(brightness4+pulse_bright);
+    }
+  }
   FastLED.show();
 }
 
@@ -185,8 +212,8 @@ void loop() {
   }
   
   // Recieve data over UDP and update strip
-  if (millis() - lastUpdateTimeLED >= 20) {
-    lastUpdateTimeLED = millis();
+  if (millis() - lastUpdateRecieve >= 20) {
+    lastUpdateRecieve = millis();
     int packetSize = udp.parsePacket();
     if (packetSize) {
       int len = udp.read(incomingPacket, 255);
@@ -229,11 +256,9 @@ void loop() {
     entanglement1  = values[6];
     entanglement2  = values[7];
     pulse1         = values[8];
-    pulse2         = values[9];
+    refreshrate    = values[9] * 100;
     strobe1        = values[10];
     strobe2        = values[11];
-
-    // Update LEDS
     updateLEDs();
   }
 }
