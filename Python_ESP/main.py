@@ -117,15 +117,23 @@ def calculate_pulse(total_pulse_time, refresh_rate):
             ESP3.pulse_start = current_pixel
         else:
             ESP3.pulse_start = -1
-        if time_per_pixel * 400 <= current_time <= time_per_pixel * 1000:
+        if (time_per_pixel * 400) <= current_time <= (time_per_pixel * 1000):
             ESP4.pulse_start = current_pixel
         else:
             ESP4.pulse_start = -1
+        if time_per_pixel * 600 <= current_time <= 1000:
+            ESP5.pulse_start = current_pixel
+        else:
+            ESP5.pulse_start = -1
+        if time_per_pixel * 800 <= current_time <= 1000:
+            ESP6.pulse_start = current_pixel
+        else:
+            ESP6.pulse_start = -1
         current_time = current_time + time_per_pixel
         current_pixel = current_pixel + 1
 
         print(current_time)
-        print(ESP1.pulse_start)
+        print(ESP5.pulse_start)
         if current_time > total_pulse_time:
             current_time = 0
             current_pixel = 0

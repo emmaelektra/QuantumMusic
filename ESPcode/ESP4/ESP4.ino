@@ -46,7 +46,7 @@ float phaseShift1 = 0;
 float phaseShift2 = 0;
 float entanglement1 = 0;
 float entanglement2  = 0;
-uint8_t pulse1 = 0;
+int pulse1 = 0;
 uint8_t pulse2 = 0;
 uint8_t strobe1 = 0;
 uint8_t strobe2 = 0;
@@ -135,13 +135,13 @@ void updateLEDs() {
     leds4[i] += twinkleBuffer4[i];
   }
 
-  if (400 < pulse1 < 1000  && pulse1 != -1) {
+  if (pulse1 > 400 && pulse1 <= 1000 && pulse1 != -1) {
     int currentpixel = pulse1 - 400;
     if (currentpixel < 200){
       leds1[200-currentpixel] = CRGB::White;
       leds1[200-currentpixel].nscale8(brightness1+pulse_bright);
     }
-    if (currentpixel < 100){
+    if (currentpixel >= 100 && currentpixel < 200){
       leds2[200-currentpixel] = CRGB::White;
       leds2[200-currentpixel].nscale8(brightness2+pulse_bright);
     }

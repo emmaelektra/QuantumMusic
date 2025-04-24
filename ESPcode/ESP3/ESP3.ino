@@ -132,13 +132,13 @@ void updateLEDs() {
     leds4[i] += twinkleBuffer4[i];
   }
 
-  if (300 < pulse1 < 600  && pulse1 != -1) {
+  if (pulse1 > 300 && pulse1 < 600 && pulse1 != -1) {
     int currentpixel = pulse1 - 300;
     if (currentpixel < 100){
       leds2[100-currentpixel] = CRGB::White;
       leds2[100-currentpixel].nscale8(brightness2+pulse_bright);
     }
-    if(currentpixel >= 100 && currentpixel < 200){
+    if (currentpixel >= 100 && currentpixel < 200){
       leds3[currentpixel-100] = CRGB::White;
       leds3[currentpixel-100].nscale8(brightness3+pulse_bright);
     }
