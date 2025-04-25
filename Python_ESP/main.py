@@ -5,9 +5,10 @@ import time
 from ESP32Class import ESPLED
 
 PORT = 80
-channel_1_brightness = 77
+max_brightness = 50
+channel_1_brightness = max_brightness
 channel_2_brightness = 0
-channel_3_brightness = 77
+channel_3_brightness = max_brightness
 channel_4_brightness = 0
 
 total_pulse_time = 10
@@ -85,12 +86,12 @@ def calculate_logic():
     """Calculates brightness values based on received ESP data."""
     while True:
         try:
-            ESP1.get_output(channel_1_brightness, channel_2_brightness, 0, 0)
-            ESP2.get_output(channel_3_brightness, channel_4_brightness, 0, 0)
-            ESP3.get_output(ESP1.output_brightness_2, ESP2.output_brightness_1, ESP1.entanglement, ESP2.entanglement)
-            ESP4.get_output(ESP1.output_brightness_1, ESP3.output_brightness_1, ESP1.entanglement, ESP3.entanglement)
-            ESP5.get_output(ESP3.output_brightness_2, ESP2.output_brightness_2, ESP3.entanglement, ESP2.entanglement)
-            ESP6.get_output(ESP4.output_brightness_2, ESP5.output_brightness_1, ESP4.entanglement, ESP5.entanglement)
+            ESP1.get_output(channel_1_brightness, channel_2_brightness, 0, 0, max_brightness)
+            ESP2.get_output(channel_3_brightness, channel_4_brightness, 0, 0, max_brightness)
+            ESP3.get_output(ESP1.output_brightness_2, ESP2.output_brightness_1, ESP1.entanglement, ESP2.entanglement, max_brightness)
+            ESP4.get_output(ESP1.output_brightness_1, ESP3.output_brightness_1, ESP1.entanglement, ESP3.entanglement, max_brightness)
+            ESP5.get_output(ESP3.output_brightness_2, ESP2.output_brightness_2, ESP3.entanglement, ESP2.entanglement, max_brightness)
+            ESP6.get_output(ESP4.output_brightness_2, ESP5.output_brightness_1, ESP4.entanglement, ESP5.entanglement, max_brightness)
             # (Additional logic for other ESPs can be enabled as needed)
             time.sleep(0.0001)  # Prevent excessive CPU usage
         except Exception as e:

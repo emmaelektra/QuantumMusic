@@ -35,7 +35,7 @@ class ESPLED:
         self.strobe1 = None
         self.strobe2 = None
     
-    def get_output(self, input_brightness_1, input_brightness_2, previous_entanglement1, previous_entanglement2):#, input_pulse1_done, input_pulse2_done):
+    def get_output(self, input_brightness_1, input_brightness_2, previous_entanglement1, previous_entanglement2, max_brightness):#, input_pulse1_done, input_pulse2_done):
         # Initialise output variables
         self.input_brightness_1 = input_brightness_1
         self.input_brightness_2 = input_brightness_2
@@ -64,11 +64,11 @@ class ESPLED:
                 self.entanglement = 0
 
         elif self.id == 4:
-            T1, R1 = input_brightness_1/77, (1-(input_brightness_1/77))
+            T1, R1 = input_brightness_1/max_brightness, (1-(input_brightness_1/max_brightness))
             self.phaseVal1 = round(((self.pot_value_ps_1 / 4095) * 2 * math.pi), 3)
             self.phaseVal2 = round(((self.pot_value_ps_2 / 4095) * 2 * math.pi), 3)
-            self.output_brightness_1 = int((T1 * (T1*T + R1*R - (2 * math.cos(self.phaseVal1-self.phaseVal2) * math.sqrt(T1*T*R1*R))) + input_brightness_2/77 * (T1*T + R1*R - (2 * math.cos(self.phaseVal1-self.phaseVal2) * math.sqrt(T1*T*R1*R))))*77) if self.output_brightness_1 >= 0 else 0
-            self.output_brightness_2 = int((T1 * (T1*R + R1*T + (2 * math.cos(self.phaseVal1-self.phaseVal2) * math.sqrt(T1*T*R1*R))) + input_brightness_2/77 * (T1*R + R1*T + (2 * math.cos(self.phaseVal1-self.phaseVal2) * math.sqrt(T1*T*R1*R))))*77) if self.output_brightness_2 >= 0 else 0
+            self.output_brightness_1 = int((T1 * (T1*T + R1*R - (2 * math.cos(self.phaseVal1-self.phaseVal2) * math.sqrt(T1*T*R1*R))) + input_brightness_2/max_brightness * (T1*T + R1*R - (2 * math.cos(self.phaseVal1-self.phaseVal2) * math.sqrt(T1*T*R1*R))))*max_brightness) if self.output_brightness_1 >= 0 else 0
+            self.output_brightness_2 = int((T1 * (T1*R + R1*T + (2 * math.cos(self.phaseVal1-self.phaseVal2) * math.sqrt(T1*T*R1*R))) + input_brightness_2/max_brightness * (T1*R + R1*T + (2 * math.cos(self.phaseVal1-self.phaseVal2) * math.sqrt(T1*T*R1*R))))*max_brightness) if self.output_brightness_2 >= 0 else 0
 
             # Entanglement logic
             if input_brightness_1 != 0 and input_brightness_2 != 0:

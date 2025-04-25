@@ -64,7 +64,7 @@ unsigned long lastUpdateRecieve = 0;
 int thisfade = 1;
 
 // Pulse parameters
-int pulse_bright = 50;
+int pulse_bright = 5;
 
 WiFiClient laptopClient;
 WiFiUDP udp;
@@ -134,21 +134,21 @@ void updateLEDs() {
     if (currentpixel < 200){
       int pix = 200-(int)currentpixel;
       leds1[pix] = CRGB::White;
-      leds1[pix].nscale8(brightness1+pulse_bright);
+      leds1[pix].nscale8(map(brightness1, 0, 77, 0, 255));
       leds2[pix] = CRGB::White;
-      leds2[pix].nscale8(brightness2+pulse_bright);
+      leds2[pix].nscale8(map(brightness2, 0, 77, 0, 255));
     }
     if (currentpixel >= 200 && currentpixel < 300){
       int pix = (int)currentpixel-200;
       leds3[pix] = CRGB::White;
-      leds3[pix].nscale8(brightness3+pulse_bright);
+      leds3[pix].nscale8(map(brightness3, 0, 77, 0, 255));
       leds4[pix] = CRGB::White;
-      leds4[pix].nscale8(brightness4+pulse_bright);
+      leds4[pix].nscale8(map(brightness4, 0, 77, 0, 255));
     }
     if (currentpixel >= 300 && currentpixel < 600){
       int pix = (int)currentpixel-200;
       leds4[pix] = CRGB::White;
-      leds4[pix].nscale8(brightness4+pulse_bright);
+      leds4[pix].nscale8(map(brightness4, 0, 77, 0, 255));
     }
   }
   FastLED.show();
