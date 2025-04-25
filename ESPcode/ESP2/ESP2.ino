@@ -64,7 +64,7 @@ unsigned long lastUpdateRecieve = 0;
 int thisfade = 1;
 
 // Pulse parameters
-int pulse_bright = 50;
+int pulse_bright = 178;
 
 WiFiClient laptopClient;
 WiFiUDP udp;

@@ -5,9 +5,9 @@ import time
 from ESP32Class import ESPLED
 
 PORT = 80
-channel_1_brightness = 77
+channel_1_brightness = 50
 channel_2_brightness = 0
-channel_3_brightness = 77
+channel_3_brightness = 50
 channel_4_brightness = 0
 
 total_pulse_time = 10
@@ -71,14 +71,15 @@ def handle_esps(udp_socket):
             print(f"❌ Unknown esp_id: {esp_id}")
             continue
 
-        #print(f"📡 Data from ESP2: {ESP2.refresh_rate}")
+        print(f"📡 Data from ESP1: {ESP1.output_brightness_1, ESP1.output_brightness_2}")
+        print(f"📡 Data from ESP2: {ESP2.output_brightness_1, ESP2.output_brightness_2}")
         #print(f"📡 Data from ESP3: {ESP3.output_brightness_1, ESP3.output_brightness_2}")
         #print(f"📡 Data from ESP4: {ESP4.entanglement}")
         #print({decoded})
-        #print(f"📡 Data from ESP5: {ESP5.output_brightness_1, ESP5.output_brightness_2, ESP5.entanglement, ESP5.previous_entanglement1, ESP5.previous_entanglement2}")
+        print(f"📡 Data from ESP5: {ESP5.output_brightness_1, ESP5.output_brightness_2}")
         #if ESP2.output_brightness_2 == 0 and ESP3.entanglement != 0:
         #    print("ESP5 repeated")
-        #print(f"📡 Data from ESP6: {ESP6.response_data}, Decoded: {decoded}, ESP6 Input 1: {ESP4.output_brightness_2} Input 2: {ESP5.output_brightness_1} Output1: {ESP6.output_brightness_1}, Output2: {ESP6.output_brightness_2}")
+        print(f"📡 Data from ESP6: {ESP6.output_brightness_1, ESP6.output_brightness_2}")
     #print(ESP3.response_data)
 
 def calculate_logic():

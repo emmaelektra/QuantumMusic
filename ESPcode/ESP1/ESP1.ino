@@ -2,6 +2,7 @@
 #include <ArduinoJson.h>
 #include <FastLED.h>
 #include <ArduinoOTA.h>
+#include <ESPmDNS.h>
 
 #define SSID "BosonSamplerWiFi"
 #define PASSWORD "QuantumTech2025"
@@ -63,12 +64,20 @@ unsigned long lastUpdateRecieve = 0;
 int thisfade = 1;
 
 // Pulse parameters
-int pulse_bright = 50;
+int pulse_bright = 170;
+#define sunlight 0xFFFFFF // pulse colours
+#define candle 0xFF9329
 
 WiFiClient laptopClient;
 WiFiUDP udp;
 
 void updateLEDs() {
+  fill_solid(leds1, NUM_LEDS1, CRGB::Black);
+  fill_solid(leds2, NUM_LEDS2, CRGB::Black);
+  fill_solid(leds3, NUM_LEDS1, CRGB::Black);
+  fill_solid(leds4, NUM_LEDS2, CRGB::Black);
+
+  /*
   for (int i = 0; i < NUM_LEDS1; i++) {
     leds1[i] = CRGB::White;
     leds1[i].nscale8(brightness1);
@@ -77,6 +86,7 @@ void updateLEDs() {
     leds2[i] = CRGB::White;
     leds2[i].nscale8(brightness2);
   }
+  
   // Entanglement on strips 3 and 4
   int sparkleBoost = map(entanglement1, 0, 15, 0, 255);
   fadeToBlackBy(leds3, NUM_LEDS3, thisfade);
@@ -127,20 +137,42 @@ void updateLEDs() {
     leds4[i] = glowColor;
     leds4[i] += twinkleBuffer4[i];
   }
-  
-  if (pulse1 < 400  && pulse1 != -1) {
+  */
+  // Pulse effect
+  if (pulse1 < 600  && pulse1 != -1) {
     int currentpixel = pulse1;
-    if (currentpixel < 200){
-      leds1[200-currentpixel] = CRGB::White;
-      leds1[200-currentpixel].nscale8(brightness1+pulse_bright);
-      leds2[200-currentpixel] = CRGB::White;
-      leds2[200-currentpixel].nscale8(brightness2+pulse_bright);
+    if (currentpixel < 400) {
+      for (int offset = 0; offset <= 160; offset += 40) {
+        int pix = 200 - currentpixel + offset;
+
+        if (pix >= 0 && pix < NUM_LEDS1 && brightness1 > 0) {
+          leds1[pix] = CRGB(sunlight);
+          leds1[pix].nscale8(brightness1);
+        }
+
+        if (pix >= 0 && pix < NUM_LEDS2 && brightness2 > 0) {
+          leds2[pix] = CRGB(sunlight);
+          leds2[pix].nscale8(brightness2);
+        }
+      }
     }
-    if (currentpixel >= 200 && currentpixel < 400){
-      leds3[currentpixel-200] = CRGB::White;
-      leds3[currentpixel-200].nscale8(brightness3+pulse_bright);
-      leds4[currentpixel-200] = CRGB::White;
-      leds4[currentpixel-200].nscale8(brightness4+pulse_bright);
+
+    if (currentpixel >= 200 && currentpixel < 600) {
+      int base = currentpixel - 200;
+
+      for (int offset = 0; offset <= 160; offset += 40) {
+        int pix = base - offset;
+
+        if (pix >= 0 && pix < NUM_LEDS3 && brightness3 > 0) {
+          leds3[pix] = CRGB(sunlight);
+          leds3[pix].nscale8(brightness3);
+        }
+
+        if (pix >= 0 && pix < NUM_LEDS4 && brightness4 > 0) {
+          leds4[pix] = CRGB(sunlight);
+          leds4[pix].nscale8(brightness4);
+        }
+      }
     }
   }
   FastLED.show();
