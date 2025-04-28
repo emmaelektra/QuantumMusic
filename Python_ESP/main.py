@@ -136,6 +136,7 @@ def calculate_pulse(total_pulse_time, refresh_rate):
         print(current_time)
         print(ESP5.pulse_start)
         if current_time > total_pulse_time:
+        # if current_time >= total_pulse_time + delay:
             current_time = 0
             current_pixel = 0
         time.sleep(time_per_pixel)
