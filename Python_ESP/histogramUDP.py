@@ -8,6 +8,7 @@ from collections import defaultdict
 import socket
 import json
 import matplotlib.font_manager as fm
+import threading
 
 # --------------------- Font Setup ---------------------
 minion_path = '/Users/emmasokoll/Library/Fonts/MinionPro-Regular.otf'
@@ -80,6 +81,31 @@ is_fullscreen = False
 dragging_slider_bs = -1
 dragging_rotation_slider = -1
 
+# --- UDP Listener Setup ---
+GUI_UDP_IP = "0.0.0.0"
+GUI_UDP_PORT = 12345
+latest_pot_values = [0] * 9  # You have 9 values from ESPs
+pot_lock = threading.Lock()
+
+def gui_udp_listener():
+    global latest_pot_values
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind((GUI_UDP_IP, GUI_UDP_PORT))
+    while True:
+        data, addr = sock.recvfrom(1024)
+        try:
+            values = list(map(int, data.decode(errors="replace").strip().split(",")))
+            if len(values) == 9:
+                with pot_lock:
+                    latest_pot_values = values
+            else:
+                print(f"Warning: received {len(values)} values instead of 9")
+        except Exception as e:
+            print(f"GUI UDP decode error: {e}")
+
+listener_thread = threading.Thread(target=gui_udp_listener, daemon=True)
+listener_thread.start()
+
 # --------------------- Helper Functions ---------------------
 def send_histogram_data(histogram_data, measured_state):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -87,6 +113,13 @@ def send_histogram_data(histogram_data, measured_state):
     data = {"histogram_data": histogram_data, "measured_state": measured_state}
     json_data = json.dumps(data)
     client_socket.sendto(json_data.encode("utf-8"), server_address)
+
+    # NEW: Send measured_state to main.py
+    measured_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    measured_server_address = ("127.0.0.1", 5678)  # New port for measured_state
+    measured_state_str = ",".join(map(str, measured_state))
+    measured_socket.sendto(measured_state_str.encode("utf-8"), measured_server_address)
+
 
 def sample_state(probs, states):
     if len(probs) > 0 and np.any(probs):
@@ -192,6 +225,27 @@ running = True
 plot_mode = "histogram"  # or "channel_probs"
 while running:
     screen.fill(white)
+
+    # --- ADD this section to read the pots and update sliders ---
+    # Read latest pots
+    with pot_lock:
+        current_pots = latest_pot_values.copy()
+
+    pot_scale_factor = 4095  # or 1023 depending on ADC resolution
+    # Smoothing factor between 0 (very slow) and 1 (instant)
+    alpha = 0.2  # you can fine-tune this
+
+    # Smooth 6 beam splitter sliders
+    for i in range(min(len(gate_values_theta), 6)):
+        target = (current_pots[i] / pot_scale_factor) * (np.pi / 2)
+        target = np.clip(target, 0, np.pi / 2)
+        gate_values_theta[i] = (1 - alpha) * gate_values_theta[i] + alpha * target
+
+    # Smooth 3 rotation gate sliders
+    for i in range(min(len(rotation_gate_angles), 3)):
+        target = (current_pots[i + 6] / pot_scale_factor) * (np.pi)
+        target = np.clip(target, 0, np.pi)
+        rotation_gate_angles[i] = (1 - alpha) * rotation_gate_angles[i] + alpha * target
 
     y_offset = 50
 
