@@ -1,5 +1,11 @@
 import pygame
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Must come before importing pyplot
+import matplotlib
+matplotlib.use('Agg')
+matplotlib.rcParams['figure.dpi'] = 100  # <- Force consistent DPI
+
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from ExperimentalSetupGUIReal import ExperimentalSetupGUIReal
@@ -19,6 +25,15 @@ plt.rcParams.update({
     'mathtext.fontset': 'custom',
     'mathtext.rm': minion_prop.get_name(),
 })
+
+# DPI setup #
+plt.rcParams.update({
+    'font.family': minion_prop.get_name(),
+    'mathtext.fontset': 'custom',
+    'mathtext.rm': minion_prop.get_name(),
+    'figure.dpi': 100,
+})
+
 
 # --------------------- Pygame Setup ---------------------
 pygame.init()
@@ -73,6 +88,12 @@ state_counts = defaultdict(int)
 
 initial_probs, initial_output_states, initial_channel_probs = exp_setup.run_experiment(input_state, gate_values=[(0, 0)] * num_bs_gates)
 output_states = [str(state) for state in initial_output_states]
+
+# Precompute tick locations and labels for the small plot
+stride = max(1, len(output_states) // 12)  # Show ~12 ticks
+xtick_positions = list(range(0, len(output_states), stride))
+xtick_labels = [output_states[i] for i in xtick_positions]
+
 for state in output_states:
     state_counts[state] = 0
 probs = initial_probs
@@ -138,165 +159,180 @@ def draw_slider(x, y, value, max_value, label, width=500, display_scale=1.0):
     label_surface = font.render(f"{label}: {display_value:.2f}", True, black)
     screen.blit(label_surface, (x, y - 25))
 
-def update_plots():
-    global last_sample_time, measured_state, flash_alpha, state_counts, probs
+plot_surface = None
+small_plot_surface = None
+plot_lock = threading.Lock()
+slider_lock = threading.Lock()
+plot_update_interval = 0.02  # or whatever works smoothly
 
-    gate_values = [(gate_values_theta[i], 0) for i in range(num_bs_gates)]
+def plot_worker():
+    global plot_surface, small_plot_surface, last_sample_time, measured_state, flash_alpha
 
-    probs, output_states_raw, channel_probs = exp_setup.run_experiment(
-        input_state,
-        gate_values=gate_values,
-        rotation_gate_angles=rotation_gate_angles
-    )
-    if time.time() - last_sample_time >= sampling_interval:
-        state_index = sample_state(probs, output_states_raw)
-        if state_index is not None:
-            measured_state = str(output_states_raw[state_index])
-            state_counts[measured_state] += 1
-        flash_alpha = 255
-        counts = [state_counts[state] for state in output_states]
-        send_histogram_data(histogram_data=counts, measured_state=measured_state)
+    while True:
+        with slider_lock:
+            gate_values = [(gate_values_theta[i], 0) for i in range(num_bs_gates)]
+            rotation_angles = list(rotation_gate_angles)
 
-        global random_noise_value
-        random_noise_value = np.random.rand()  # Random value between 0 and 1
+        probs, output_states_raw, channel_probs = exp_setup.run_experiment(
+            input_state,
+            gate_values=gate_values,
+            rotation_gate_angles=rotation_angles
+        )
 
-        last_sample_time = time.time()
+        if time.time() - last_sample_time >= sampling_interval:
+            state_index = sample_state(probs, output_states_raw)
+            if state_index is not None:
+                measured_state = str(output_states_raw[state_index])
+                state_counts[measured_state] += 1
+            flash_alpha = 255
+            counts = [state_counts[state] for state in output_states]
+            send_histogram_data(histogram_data=counts, measured_state=measured_state)
+            random_noise_value = np.random.rand()
+            last_sample_time = time.time()
+        else:
+            counts = [state_counts[state] for state in output_states]
 
-    counts = [state_counts[state] for state in output_states]
-    plot_width, plot_height = int(width * 0.4), int(height * 0.4)
+        # Histogram Plot
+        plot_width, plot_height = int(width * 0.4), int(height * 0.4)
+        fig = plt.figure(figsize=(plot_width / 100, plot_height / 100), dpi=100)
+        ax = fig.add_subplot(111)
 
-    fig, ax = plt.subplots(figsize=(plot_width / 140, plot_height / 90))
+        if plot_mode == "histogram":
+            ax.bar(range(len(counts)), counts, color='blue')
+            ax.set_title("Measurement Counts", fontsize=15)
+            ax.set_xlabel("Output States")
+            ax.set_ylabel("Count")
+            ax.set_xticks(range(len(output_states)))
+            ax.set_xticklabels(output_states, rotation='vertical', fontsize=10, ha='center')
 
-    if plot_mode == "histogram":
-        ax.bar(range(len(counts)), counts, color='blue')
-        ax.set_title(
-            f"Measurement Counts Over Time\n{num_channels} channels, {num_photons} photons, input {input_state}",
-            fontsize=15)
+        else:
+            all_channel_probs = list(channel_probs) + [random_noise_value]
+            ax.bar(range(num_channels + 1), all_channel_probs, color=['red'] * num_channels + ['gray'])
+            ax.set_title(f"Per-Channel Occupation Probabilities", fontsize=15)
+            ax.set_xlabel("Channel")
+            ax.set_ylabel("Probability")
+            ax.set_xticks(range(num_channels + 1))
+            ax.set_xticklabels([f"q[{i}]" for i in range(num_channels)] + ["Noise"], fontsize=12, ha='center')
+            ax.set_ylim(0, 1.1)  # Probabilities between 0 and 1 (plus a little headroom)
+
+        canvas = FigureCanvas(fig)
+        canvas.draw()
+        surf = pygame.image.frombuffer(canvas.buffer_rgba().tobytes(), canvas.get_width_height(), "RGBA")
+        plt.close(fig)
+
+        # Small theoretical plot
+        small_plot_width, small_plot_height = int(width * 0.2), int(height * 0.2)
+        fig = plt.figure(figsize=(small_plot_width / 100, small_plot_height / 100), dpi=100)
+        ax = fig.add_subplot(111)
+
+        ax.bar(range(len(probs)), probs, color='green')
         ax.set_xlabel("Output States")
         ax.set_ylabel("Count")
-        ax.set_xticks(range(len(output_states)))
-        ax.set_xticklabels(output_states, rotation='vertical', fontsize=10, ha='center')
-    else:  # plot_mode == "channel_probs"
-        all_channel_probs = list(channel_probs) + [random_noise_value]
-        ax.bar(range(num_channels + 1), all_channel_probs, color=['red'] * num_channels + ['gray'])
-        ax.set_title(f"Per-Channel Occupation Probabilities", fontsize=15)
-        ax.set_xlabel("Channel")
-        ax.set_ylabel("Probability")
-        ax.set_xticks(range(num_channels + 1))
-        ax.set_xticklabels([f"q[{i}]" for i in range(num_channels)] + ["Noise"], fontsize=12, ha='center')
-        ax.set_ylim(0, 1.1)  # Probabilities between 0 and 1 (plus a little headroom)
+        ax.set_xticks(xtick_positions)
+        ax.set_xticklabels(xtick_labels, rotation='vertical', fontsize=10, ha='center')
 
-    plt.tight_layout()
-    canvas = FigureCanvas(fig)
-    canvas.draw()
-    plot_surface = pygame.image.frombuffer(canvas.buffer_rgba().tobytes(), canvas.get_width_height(), "RGBA")
-    screen.blit(plot_surface, (width - plot_width - 310, 20))
-    plt.close(fig)
+        canvas = FigureCanvas(fig)
+        canvas.draw()
+        small_surf = pygame.image.frombuffer(canvas.buffer_rgba().tobytes(), canvas.get_width_height(), "RGBA")
+        plt.close(fig)
 
-    small_plot_width, small_plot_height = int(width * 0.2), int(height * 0.2)
-    fig, ax = plt.subplots(figsize=(small_plot_width / 100, small_plot_height / 70))
-    ax.bar(range(len(probs)), probs, color='green')
-    ax.set_ylim(0, 1)
-    ax.set_title("Theoretical Probability Distribution", fontsize=15)
-    ax.set_xticks(range(len(output_states)))
-    ax.set_xticklabels(output_states, rotation='vertical', fontsize=10, ha='center')
-    plt.tight_layout()
-    canvas = FigureCanvas(fig)
-    canvas.draw()
-    small_plot_surface = pygame.image.frombuffer(canvas.buffer_rgba().tobytes(), canvas.get_width_height(), "RGBA")
-    screen.blit(small_plot_surface, (20, height - small_plot_height - 400))
-    plt.close(fig)
+        with plot_lock:
+            plot_surface = surf
+            small_plot_surface = small_surf
 
-    if measured_state is not None:
-        state_text = font.render(f"Measured State: {measured_state}", True, black)
-        text_x, text_y = width - 650, 950
-        screen.blit(state_text, (text_x, text_y))
-
-        if flash_alpha > 0:
-            flash_x = text_x + state_text.get_width() + 13
-            flash_y = text_y - 2
-            flash_surface = pygame.Surface((30, 30), pygame.SRCALPHA)
-            pygame.draw.circle(flash_surface, (255, 0, 0, flash_alpha), (15, 20), 10)
-            screen.blit(flash_surface, (flash_x, flash_y))
-            flash_alpha = max(0, flash_alpha - fade_speed)
+        time.sleep(plot_update_interval)
 
 # --------------------- Main Loop ---------------------
 running = True
 plot_mode = "histogram"  # or "channel_probs"
-while running:
-    screen.fill(white)
+plot_thread = threading.Thread(target=plot_worker, daemon=True)
+plot_thread.start()
+if __name__ == "__main__":
+    while running:
+        screen.fill(white)
 
-    # --- ADD this section to read the pots and update sliders ---
-    # Read latest pots
-    with pot_lock:
-        current_pots = latest_pot_values.copy()
+        # --- ADD this section to read the pots and update sliders ---
+        # Read latest pots
+        with pot_lock:
+            current_pots = latest_pot_values.copy()
 
-    pot_scale_factor = 4095  # or 1023 depending on ADC resolution
-    # Smoothing factor between 0 (very slow) and 1 (instant)
-    alpha = 0.2  # you can fine-tune this
+        pot_scale_factor = 4095  # or 1023 depending on ADC resolution
+        # Smoothing factor between 0 (very slow) and 1 (instant)
 
-    # Smooth 6 beam splitter sliders
-    for i in range(min(len(gate_values_theta), 6)):
-        target = (current_pots[i] / pot_scale_factor) * (np.pi / 2)
-        target = np.clip(target, 0, np.pi / 2)
-        gate_values_theta[i] = (1 - alpha) * gate_values_theta[i] + alpha * target
+        with slider_lock:
+            for i in range(min(len(gate_values_theta), 6)):
+                gate_values_theta[i] = np.clip((current_pots[i] / pot_scale_factor) * (np.pi / 2), 0, np.pi / 2)
+            for i in range(min(len(rotation_gate_angles), 3)):
+                rotation_gate_angles[i] = np.clip((current_pots[i + 6] / pot_scale_factor) * (np.pi), 0, np.pi)
 
-    # Smooth 3 rotation gate sliders
-    for i in range(min(len(rotation_gate_angles), 3)):
-        target = (current_pots[i + 6] / pot_scale_factor) * (np.pi)
-        target = np.clip(target, 0, np.pi)
-        rotation_gate_angles[i] = (1 - alpha) * rotation_gate_angles[i] + alpha * target
+        y_offset = 50
 
-    y_offset = 50
+        for i, theta in enumerate(gate_values_theta):
+            draw_slider(50, 50 + i * 70, theta, np.pi, f"BS θ {i + 1}", width=slider_width, display_scale=2)
 
-    for i, theta in enumerate(gate_values_theta):
-        draw_slider(50, 50 + i * 70, theta, np.pi, f"BS θ {i + 1}", width=slider_width, display_scale=2)
-
-    for i, angle in enumerate(rotation_gate_angles):
-        draw_slider(380, 50 + i * 70, angle, np.pi, f"Rgate {i+1}", width=slider_width)
+        for i, angle in enumerate(rotation_gate_angles):
+            draw_slider(380, 50 + i * 70, angle, np.pi, f"Rgate {i+1}", width=slider_width)
 
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            for i in range(num_bs_gates):
-                if 50 <= event.pos[0] <= 50 + slider_width and 50 + i * 70 - 10 <= event.pos[1] <= 50 + i * 70 + 10:
-                    dragging_slider_bs = i
-            for i in range(num_rotation_gates):
-                if 380 <= event.pos[0] <= 380 + slider_width and 50 + i * 70 - 10 <= event.pos[1] <= 50 + i * 70 + 10:
-                    dragging_rotation_slider = i
-        elif event.type == pygame.MOUSEBUTTONUP:
-            dragging_slider_bs = -1
-            dragging_rotation_slider = -1
-        elif event.type == pygame.MOUSEMOTION:
-            if dragging_slider_bs != -1:
-                x = max(50, min(50 + slider_width, event.pos[0]))
-                theta = (x - 50) / (slider_width * slider_scale_bs) * (np.pi / 2)
-                theta = min(max(theta, 0), np.pi / 2)
-                gate_values_theta[dragging_slider_bs] = theta
-            if dragging_rotation_slider != -1:
-                x = max(380, min(380 + slider_width, event.pos[0]))
-                angle = (x - 380) / (slider_width * slider_scale_rgate) * (np.pi)
-                angle = min(max(angle, 0), np.pi)
-                rotation_gate_angles[dragging_rotation_slider] = angle
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_f:
-                is_fullscreen = not is_fullscreen
-                if is_fullscreen:
-                    screen = pygame.display.set_mode((width, height), pygame.FULLSCREEN)
-                    width, height = screen.get_size()
-                else:
-                    screen = pygame.display.set_mode((1680, 1050))
-                    width, height = screen.get_size()
-            if event.key == pygame.K_s:
-                if plot_mode == "histogram":
-                    plot_mode = "channel_probs"
-                else:
-                    plot_mode = "histogram"
-                print(f"Switched to {plot_mode}")
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                for i in range(num_bs_gates):
+                    if 50 <= event.pos[0] <= 50 + slider_width and 50 + i * 70 - 10 <= event.pos[1] <= 50 + i * 70 + 10:
+                        dragging_slider_bs = i
+                for i in range(num_rotation_gates):
+                    if 380 <= event.pos[0] <= 380 + slider_width and 50 + i * 70 - 10 <= event.pos[1] <= 50 + i * 70 + 10:
+                        dragging_rotation_slider = i
+            elif event.type == pygame.MOUSEBUTTONUP:
+                dragging_slider_bs = -1
+                dragging_rotation_slider = -1
+            elif event.type == pygame.MOUSEMOTION:
+                if dragging_slider_bs != -1:
+                    x = max(50, min(50 + slider_width, event.pos[0]))
+                    theta = (x - 50) / (slider_width * slider_scale_bs) * (np.pi / 2)
+                    theta = min(max(theta, 0), np.pi / 2)
+                    gate_values_theta[dragging_slider_bs] = theta
+                if dragging_rotation_slider != -1:
+                    x = max(380, min(380 + slider_width, event.pos[0]))
+                    angle = (x - 380) / (slider_width * slider_scale_rgate) * (np.pi)
+                    angle = min(max(angle, 0), np.pi)
+                    rotation_gate_angles[dragging_rotation_slider] = angle
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_f:
+                    is_fullscreen = not is_fullscreen
+                    if is_fullscreen:
+                        screen = pygame.display.set_mode((width, height), pygame.FULLSCREEN)
+                        width, height = screen.get_size()
+                    else:
+                        screen = pygame.display.set_mode((1680, 1050))
+                        width, height = screen.get_size()
+                if event.key == pygame.K_s:
+                    if plot_mode == "histogram":
+                        plot_mode = "channel_probs"
+                    else:
+                        plot_mode = "histogram"
+                    print(f"Switched to {plot_mode}")
 
-    update_plots()
-    pygame.display.flip()
+        with plot_lock:
+            if plot_surface:
+                screen.blit(plot_surface, (width - plot_surface.get_width() - 310, 20))
+            if small_plot_surface:
+                screen.blit(small_plot_surface, (20, height - small_plot_surface.get_height() - 400))
 
-pygame.quit()
+        if measured_state is not None:
+            state_text = font.render(f"Measured State: {measured_state}", True, black)
+            text_x, text_y = width - 650, 950
+            screen.blit(state_text, (text_x, text_y))
+
+            if flash_alpha > 0:
+                flash_x = text_x + state_text.get_width() + 13
+                flash_y = text_y - 2
+                flash_surface = pygame.Surface((30, 30), pygame.SRCALPHA)
+                pygame.draw.circle(flash_surface, (255, 0, 0, flash_alpha), (15, 20), 10)
+                screen.blit(flash_surface, (flash_x, flash_y))
+                flash_alpha = max(0, flash_alpha - fade_speed)
+
+        pygame.display.flip()
+
+    pygame.quit()

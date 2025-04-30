@@ -3,6 +3,14 @@ import json
 import threading
 import time
 from ESP32Class import ESPLED
+import subprocess
+
+# Launch the GUI script in a separate process
+try:
+    subprocess.Popen(["python3", "histogramUDP.py"])
+except Exception as e:
+    print(f"❌ Failed to start histogramUDP.py: {e}")
+
 
 PORT = 80
 
@@ -95,8 +103,8 @@ def handle_esps(udp_socket):
                 ESP4.pot_value,  # BS4
                 ESP5.pot_value,  # BS5
                 ESP6.pot_value,  # BS6
-                ESP3.pot_value_ps_1,  # RG1
-                ESP4.pot_value_ps_1,  # RG2
+                ESP4.pot_value_ps_1,  # RG1
+                ESP3.pot_value_ps_1,  # RG2
                 ESP4.pot_value_ps_2  # RG3
             ]
 
