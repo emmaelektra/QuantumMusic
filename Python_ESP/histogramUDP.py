@@ -30,6 +30,17 @@ black = (0, 0, 0)
 gray = (200, 200, 200)
 font = pygame.font.Font(minion_path, 36)
 
+# === Global Matplotlib setup for the big plot ===
+big_plot_width, big_plot_height = int(width * 0.4), int(height * 0.4)
+big_fig, big_ax = plt.subplots(figsize=(big_plot_width / 140, big_plot_height / 90))
+big_canvas = FigureCanvas(big_fig)
+
+# === Global Matplotlib setup for the small plot (if you still want it) ===
+small_plot_width, small_plot_height = int(width * 0.2), int(height * 0.2)
+small_fig, small_ax = plt.subplots(figsize=(small_plot_width / 100, small_plot_height / 70))
+small_canvas = FigureCanvas(small_fig)
+
+
 # --------------------- Experiment Setup ---------------------
 num_channels = 4
 num_photons = 3
@@ -64,8 +75,7 @@ slider_scale_rgate = 1
 gate_values_theta = [0] * num_bs_gates
 rotation_gate_angles = [0] * num_rotation_gates
 
-sampling_interval = 2
-last_sample_time = time.time()
+sampling_flag = False
 measured_state = None
 flash_alpha = 0
 fade_speed = 20
@@ -88,23 +98,40 @@ latest_pot_values = [0] * 9  # You have 9 values from ESPs
 pot_lock = threading.Lock()
 
 def gui_udp_listener():
-    global latest_pot_values
+    global latest_pot_values, sampling_flag
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((GUI_UDP_IP, GUI_UDP_PORT))
     while True:
         data, addr = sock.recvfrom(1024)
+        text = data.decode(errors="ignore").strip()
+        # try parsing JSON first
         try:
-            values = list(map(int, data.decode(errors="replace").strip().split(",")))
-            if len(values) == 9:
-                with pot_lock:
-                    latest_pot_values = values
-            else:
-                print(f"Warning: received {len(values)} values instead of 9")
-        except Exception as e:
-            print(f"GUI UDP decode error: {e}")
+            msg = json.loads(text)
+        except json.JSONDecodeError:
+            msg = None
+
+        if isinstance(msg, dict):
+            if msg.get("sample"):
+                sampling_flag = True
+                # no need to update sampling_interval here
+                continue
+
+        # otherwise fall back to your old code:
+        parts = text.split(",")
+        if len(parts) == 9:
+            values = list(map(int, parts))
+            with pot_lock:
+                latest_pot_values = values
+        else:
+            print(f"Warning: expected 9 pots, got {len(parts)}")
+
 
 listener_thread = threading.Thread(target=gui_udp_listener, daemon=True)
 listener_thread.start()
+
+# Variable to track which slider is being dragged (-1 means none)
+dragging_slider_1 = -1
+dragging_slider_2 = -1
 
 # --------------------- Helper Functions ---------------------
 def send_histogram_data(histogram_data, measured_state):
@@ -139,7 +166,7 @@ def draw_slider(x, y, value, max_value, label, width=500, display_scale=1.0):
     screen.blit(label_surface, (x, y - 25))
 
 def update_plots():
-    global last_sample_time, measured_state, flash_alpha, state_counts, probs
+    global last_sample_time, measured_state, flash_alpha, state_counts, probs, sampling_flag
 
     gate_values = [(gate_values_theta[i], 0) for i in range(num_bs_gates)]
 
@@ -148,68 +175,84 @@ def update_plots():
         gate_values=gate_values,
         rotation_gate_angles=rotation_gate_angles
     )
-    if time.time() - last_sample_time >= sampling_interval:
+
+    if sampling_flag:
+        # do exactly one measurement
         state_index = sample_state(probs, output_states_raw)
         if state_index is not None:
-            measured_state = str(output_states_raw[state_index])
-            state_counts[measured_state] += 1
+            measured_state = output_states_raw[state_index]
+            state_counts[str(measured_state)] += 1
+
         flash_alpha = 255
-        counts = [state_counts[state] for state in output_states]
-        send_histogram_data(histogram_data=counts, measured_state=measured_state)
+        counts = [state_counts[s] for s in output_states]
+        send_histogram_data(histogram_data=counts,
+                            measured_state=measured_state)
 
-        global random_noise_value
-        random_noise_value = np.random.rand()  # Random value between 0 and 1
-
-        last_sample_time = time.time()
+        sampling_flag = False  # reset until next cycle
 
     counts = [state_counts[state] for state in output_states]
     plot_width, plot_height = int(width * 0.4), int(height * 0.4)
 
-    fig, ax = plt.subplots(figsize=(plot_width / 140, plot_height / 90))
-
+    #fig, ax = plt.subplots(figsize=(plot_width / 140, plot_height / 90))
+    big_ax.clear()
     if plot_mode == "histogram":
-        ax.bar(range(len(counts)), counts, color='blue')
-        ax.set_title(
+        big_ax.bar(range(len(counts)), counts, color='blue')
+        big_ax.set_title(
             f"Measurement Counts Over Time\n{num_channels} channels, {num_photons} photons, input {input_state}",
             fontsize=15)
-        ax.set_xlabel("Output States")
-        ax.set_ylabel("Count")
-        ax.set_xticks(range(len(output_states)))
-        ax.set_xticklabels(output_states, rotation='vertical', fontsize=10, ha='center')
+        big_ax.set_xlabel("Output States")
+        big_ax.set_ylabel("Count")
+        big_ax.set_xticks(range(len(output_states)))
+        big_ax.set_xticklabels(output_states, rotation='vertical', fontsize=10, ha='center')
+        big_fig.tight_layout(rect=[0, 0.05, 1, 1])
+
     else:  # plot_mode == "channel_probs"
         all_channel_probs = list(channel_probs) + [random_noise_value]
-        ax.bar(range(num_channels + 1), all_channel_probs, color=['red'] * num_channels + ['gray'])
-        ax.set_title(f"Per-Channel Occupation Probabilities", fontsize=15)
-        ax.set_xlabel("Channel")
-        ax.set_ylabel("Probability")
-        ax.set_xticks(range(num_channels + 1))
-        ax.set_xticklabels([f"q[{i}]" for i in range(num_channels)] + ["Noise"], fontsize=12, ha='center')
-        ax.set_ylim(0, 1.1)  # Probabilities between 0 and 1 (plus a little headroom)
+        big_ax.bar(range(num_channels + 1), all_channel_probs, color=['red'] * num_channels + ['gray'])
+        big_ax.set_title(f"Per-Channel Occupation Probabilities", fontsize=15)
+        big_ax.set_xlabel("Channel")
+        big_ax.set_ylabel("Probability")
+        big_ax.set_xticks(range(num_channels + 1))
+        big_ax.set_xticklabels([f"q[{i}]" for i in range(num_channels)] + ["Noise"], fontsize=12, ha='center')
+        big_ax.set_ylim(0, 1.1)  # Probabilities between 0 and 1 (plus a little headroom)
 
-    plt.tight_layout()
-    canvas = FigureCanvas(fig)
-    canvas.draw()
-    plot_surface = pygame.image.frombuffer(canvas.buffer_rgba().tobytes(), canvas.get_width_height(), "RGBA")
-    screen.blit(plot_surface, (width - plot_width - 310, 20))
-    plt.close(fig)
+        plt.tight_layout()
+    #canvas = FigureCanvas(fig)
+    #canvas.draw()
+    #plot_surface = pygame.image.frombuffer(canvas.buffer_rgba().tobytes(), canvas.get_width_height(), "RGBA")
+    #screen.blit(plot_surface, (width - plot_width - 310, 20))
+    #plt.close(fig)
+    big_canvas.draw()
+    buf = big_canvas.buffer_rgba()
+    plot_surface = pygame.image.frombuffer(buf.tobytes(),
+                                           big_canvas.get_width_height(),
+                                           "RGBA")
+    screen.blit(plot_surface, (width - big_plot_width - 310, 20))
 
-    small_plot_width, small_plot_height = int(width * 0.2), int(height * 0.2)
-    fig, ax = plt.subplots(figsize=(small_plot_width / 100, small_plot_height / 70))
-    ax.bar(range(len(probs)), probs, color='green')
-    ax.set_ylim(0, 1)
-    ax.set_title("Theoretical Probability Distribution", fontsize=15)
-    ax.set_xticks(range(len(output_states)))
-    ax.set_xticklabels(output_states, rotation='vertical', fontsize=10, ha='center')
+    #small_plot_width, small_plot_height = int(width * 0.2), int(height * 0.2)
+    #fig, ax = plt.subplots(figsize=(small_plot_width / 100, small_plot_height / 70))
+    small_ax.clear()
+    small_ax.bar(range(len(probs)), probs, color='green')
+    small_ax.set_ylim(0, 1)
+    small_ax.set_title("Theoretical Probability Distribution", fontsize=15)
+    small_ax.set_xticks(range(len(output_states)))
+    small_ax.set_xticklabels(output_states, rotation='vertical', fontsize=10, ha='center')
     plt.tight_layout()
-    canvas = FigureCanvas(fig)
-    canvas.draw()
-    small_plot_surface = pygame.image.frombuffer(canvas.buffer_rgba().tobytes(), canvas.get_width_height(), "RGBA")
-    screen.blit(small_plot_surface, (20, height - small_plot_height - 400))
-    plt.close(fig)
+    #canvas = FigureCanvas(fig)
+    #canvas.draw()
+    #small_plot_surface = pygame.image.frombuffer(canvas.buffer_rgba().tobytes(), canvas.get_width_height(), "RGBA")
+    #screen.blit(small_plot_surface, (20, height - small_plot_height - 400))
+    #plt.close(fig)
+    small_canvas.draw()
+    buf2 = small_canvas.buffer_rgba()
+    small_surf = pygame.image.frombuffer(buf2.tobytes(),
+                                       small_canvas.get_width_height(),
+                                       "RGBA")
+    screen.blit(small_surf, (20, height - small_plot_height - 400))
 
     if measured_state is not None:
         state_text = font.render(f"Measured State: {measured_state}", True, black)
-        text_x, text_y = width - 650, 950
+        text_x, text_y = width - 650, 970
         screen.blit(state_text, (text_x, text_y))
 
         if flash_alpha > 0:
@@ -224,7 +267,11 @@ def update_plots():
 running = True
 plot_mode = "histogram"  # or "channel_probs"
 if __name__ == "__main__":
+    clock = pygame.time.Clock()
+
     while running:
+        dt = clock.tick(30)  # limit to 60 FPS (dt in ms)
+        # … your loop …
         screen.fill(white)
 
         # --- ADD this section to read the pots and update sliders ---
@@ -253,6 +300,25 @@ if __name__ == "__main__":
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                # Check if a slider is clicked and start dragging it
+                for i in range(num_bs_gates):
+                    if 50 <= event.pos[0] <= 350 and 50 + i * 70 - 10 <= event.pos[1] <= 50 + i * 70 + 10:
+                        dragging_slider_1 = i  # Start dragging this slider for param 1
+                    if 400 <= event.pos[0] <= 700 and 50 + i * 70 - 10 <= event.pos[1] <= 50 + i * 70 + 10:
+                        dragging_slider_2 = i  # Start dragging this slider for param 2
+            elif event.type == pygame.MOUSEBUTTONUP:
+                # Stop dragging when the mouse button is released
+                dragging_slider_1 = -1
+                dragging_slider_2 = -1
+            elif event.type == pygame.MOUSEMOTION:
+                # Update the slider value while dragging
+                if dragging_slider_1 != -1:
+                    x = max(50, min(350, event.pos[0]))  # Keep the knob within the slider range
+                    gate_values_theta[dragging_slider_1] = (x - 50) / 300 * np.pi / 2
+                if dragging_slider_2 != -1:
+                    x = max(400, min(700, event.pos[0]))  # Keep the knob within the slider range
+                    gate_values_theta[dragging_slider_2] = (x - 400) / 300 * np.pi / 2
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_f:
                     is_fullscreen = not is_fullscreen

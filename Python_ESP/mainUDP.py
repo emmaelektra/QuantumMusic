@@ -1,3 +1,4 @@
+import random
 import socket
 import json
 import threading
@@ -30,6 +31,7 @@ def listen_for_measured_state():
         data, addr = measured_state_socket.recvfrom(1024)
         latest_measured_state = list(map(int, data.decode().strip().split(",")))
         print(f"📩 Received measured_state: {latest_measured_state}")
+        measured_event.set()  # ← wake up calculate_pulse()
 
 max_brightness = 50
 channel_1_brightness = max_brightness
@@ -38,7 +40,7 @@ channel_3_brightness = max_brightness
 channel_4_brightness = 0
 
 total_pulse_time = 10
-refresh_rate = total_pulse_time/5000
+strobe_time = 3
 
 # Define ESP instances explicitly
 ESP1 = ESPLED("192.168.4.3", 1, 2000)
@@ -93,8 +95,8 @@ def handle_esps(udp_socket):
                 ESP.pot_value_ps_1 = p2 if p2 is not None else 0
                 ESP.pot_value_ps_2 = p3 if p3 is not None else 0
                 #print(f"Data from ESP4: {decoded}")
-            udp_socket.sendto((ESP.response_data + "\n").encode(), (ESP.ip, 1234))
-
+            if ESP.response_data is not None:
+                udp_socket.sendto((ESP.response_data + "\n").encode(), (ESP.ip, 1234))
             # Forward all ESP pot values to the GUI
             pots_to_send = [
                 ESP1.pot_value,  # BS1
@@ -140,85 +142,74 @@ def calculate_logic():
         except Exception as e:
             print(f"❌ Error in logic calculation: {e}")
 
+measured_event = threading.Event()
 
-def calculate_pulse(total_pulse_time, refresh_rate):
-    current_time = 0
-    time_per_pixel = (total_pulse_time)/(1000) # 1000 for 5x200 pixels full length
-    #refresh_rate = 1/time_per_pixel
-    #esp_pixel_per_second = 1/refresh_rate
+def calculate_pulse(total_pulse_time, strobe_time):
+    num_pixels     = 1000
+    time_per_pixel = total_pulse_time / num_pixels
+
+    # Push refresh_rate into your ESPs once
     ESP1.refresh_rate = ESP2.refresh_rate = time_per_pixel
-    current_pixel = 0
-    while True:
-        if current_time <= time_per_pixel * 400:
-            ESP1.pulse_start = current_pixel
-        else:
-            ESP1.pulse_start = -1
-        if current_time <= time_per_pixel * 600:
-            ESP2.pulse_start = current_pixel
-        else:
-            ESP2.pulse_start = -1
-        if time_per_pixel * 600 >= current_time >= time_per_pixel * 300:
-            ESP3.pulse_start = current_pixel
-        else:
-            ESP3.pulse_start = -1
-        if (time_per_pixel * 400) <= current_time <= (time_per_pixel * 1000):
-            ESP4.pulse_start = current_pixel
-        else:
-            ESP4.pulse_start = -1
-        if time_per_pixel * 600 <= current_time <= 1000:
-            ESP5.pulse_start = current_pixel
-        else:
-            ESP5.pulse_start = -1
-        if time_per_pixel * 800 <= current_time <= 1000:
-            ESP6.pulse_start = current_pixel
-        else:
-            ESP6.pulse_start = -1
-        current_time = current_time + time_per_pixel
-        current_pixel = current_pixel + 1
-
-        print(current_time)
-        print(ESP5.pulse_start)
-        if current_time > total_pulse_time:
-        # if current_time >= total_pulse_time + delay:
-            current_time = 0
-            current_pixel = 0
-        time.sleep(time_per_pixel)
-
-def calculate_strobe():
-    """Constantly updates strobe values based on latest measured state,
-    and resets them to 0 if no update was received recently."""
-    last_update_time = time.time()
 
     while True:
-        if latest_measured_state is not None:
-            state = latest_measured_state
-            if len(state) >= 4:
-                ESP4.strobe1 = state[0]
-                ESP6.strobe1 = state[1]
-                ESP6.strobe2 = state[2]
-                ESP5.strobe2 = state[3]
-                last_update_time = time.time()  # Update time when new state arrives
+        # ——— 1) pulse sweep ———
+        for px in range(num_pixels):
+            ESP1.pulse_start = px if px <=   0.4 * num_pixels else -1
+            ESP2.pulse_start = px if px <=   0.6 * num_pixels else -1
+            ESP3.pulse_start = px if 0.3 * num_pixels <= px <= 0.6 * num_pixels else -1
+            ESP4.pulse_start = px if 0.4 * num_pixels <= px <=     num_pixels else -1
+            ESP5.pulse_start = px if 0.6 * num_pixels <= px <=     num_pixels else -1
+            ESP6.pulse_start = px if 0.8 * num_pixels <= px <=     num_pixels else -1
 
-        # If no new data received for 3 seconds → reset strobes to 0
-        if time.time() - last_update_time > 3.0:
-            ESP4.strobe1 = 0
-            ESP6.strobe1 = 0
-            ESP6.strobe2 = 0
-            ESP5.strobe2 = 0
+            time.sleep(time_per_pixel)
 
-        time.sleep(0.01)  # small delay to prevent CPU overload
+        # 1) tell the GUI to sample
+        measured_event.clear()
+        gui_socket.sendto(json.dumps({"sample": True}).encode(), (GUI_IP, GUI_PORT))
+
+        # 2) wait (up to 500 ms) for the reply
+        if not measured_event.wait(0.3):
+            print("⚠️ measurement timeout")
+            # you can decide here to skip or default to zeros
+        # now latest_measured_state is guaranteed fresh
+
+        # ——— 2) latch & print strobes ———
+        if latest_measured_state and len(latest_measured_state) >= 4:
+            a, b, c, d = latest_measured_state[:4]
+            ESP4.strobe1 = a
+            ESP6.strobe1 = b
+            ESP6.strobe2 = c
+            ESP5.strobe2 = d
+        else:
+            ESP4.strobe1 = ESP6.strobe1 = ESP6.strobe2 = ESP5.strobe2 = 0
+
+        print("Strobes ON:", ESP4.strobe1, ESP6.strobe1, ESP6.strobe2, ESP5.strobe2)
+
+        # ——— 3) hold strobes ———
+        time.sleep(strobe_time)
+        print("Strobes still ON:", ESP4.strobe1, ESP6.strobe1, ESP6.strobe2, ESP5.strobe2)
+
+        # ——— 4) clear strobes ———
+        ESP4.strobe1 = ESP6.strobe1 = ESP6.strobe2 = ESP5.strobe2 = 0
+        print("Strobes CLEARED", ESP4.strobe1, ESP6.strobe1, ESP6.strobe2, ESP5.strobe2)
+
+        # ——— 5) random inter-cycle delay ———
+        delay = random.uniform(0, 10)
+        print(f"Waiting {delay:.2f}s for next cycle")
+        time.sleep(delay)
+
 
 # Start connection handling and logic calculation in separate threads.
 udp_socket.bind(("0.0.0.0", udp_port))
 thread1 = threading.Thread(target=handle_esps, args=(udp_socket,),  daemon=True)
 thread2 = threading.Thread(target=calculate_logic, daemon=True)
-thread3 = threading.Thread(target=calculate_pulse, args=(total_pulse_time, refresh_rate),  daemon=True)
-thread4 = threading.Thread(target=calculate_strobe, daemon=True)
+thread3 = threading.Thread(target=calculate_pulse, args=(total_pulse_time, strobe_time),  daemon=True)
+#thread4 = threading.Thread(target=calculate_strobe, daemon=True)
 thread5 = threading.Thread(target=listen_for_measured_state, daemon=True)
 thread1.start()
 thread2.start()
 thread3.start()
-thread4.start()
+#thread4.start()
 thread5.start()
 
 # Keep the main thread alive.
