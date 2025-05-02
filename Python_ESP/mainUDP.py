@@ -117,7 +117,7 @@ def handle_esps(udp_socket):
             print(f"❌ Unknown esp_id: {esp_id}")
             continue
 
-        print(f"📡 Data from ESP3: {ESP3.output_intensity1, ESP3.output_intensity2}")
+        print(f"📡 Data from ESP2: {ESP2.output_intensity1, ESP2.output_intensity2}")
         #print(f"📡 Data from ESP3: {ESP3.output_brightness_1, ESP3.output_brightness_2}")
         #print(f"📡 Data from ESP4: {ESP4.entanglement}")
         #print({decoded})
@@ -159,7 +159,7 @@ def calculate_logic():
             ESP2.get_output(E1_0, E2_0, E3_0, E4_0, E1_1, E2_1, E3_1, E4_1, E2_2, E3_2, t1, t2, t3, t4, t5, t6, r1, r2, r3, r4, r5, r6, phi1, phi2, phi3)
             ESP3.get_output(E1_0, E2_0, E3_0, E4_0, E1_1, E2_1, E3_1, E4_1, E2_2, E3_2, t1, t2, t3, t4, t5, t6, r1, r2, r3, r4, r5, r6, phi1, phi2, phi3)
             # (Additional logic for other ESPs can be enabled as needed)
-            time.sleep(0.01)  # Prevent excessive CPU usage
+            time.sleep(0.001)  # Prevent excessive CPU usage
         except Exception as e:
             print(f"❌ Error in logic calculation: {e}")
 
