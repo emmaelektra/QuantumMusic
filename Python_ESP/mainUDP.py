@@ -40,7 +40,7 @@ channel_3_brightness = max_brightness
 channel_4_brightness = 0
 
 total_pulse_time = 10
-strobe_time = 3
+strobe_time = 0.5
 
 # Define ESP instances explicitly
 ESP1 = ESPLED("192.168.4.3", 1, 2000)
@@ -145,7 +145,7 @@ def calculate_logic():
 measured_event = threading.Event()
 
 def calculate_pulse(total_pulse_time, strobe_time):
-    num_pixels     = 1001
+    num_pixels     = 1000
     time_per_pixel = total_pulse_time / num_pixels
 
     # Push refresh_rate into your ESPs once

@@ -72,7 +72,7 @@ int pulse_bright = 50;
 // Strobe parameters
 bool     strobeActive      = false;
 unsigned long strobeStartMs = 0;
-const unsigned long strobeTimeMs = 2000; // 2 s
+const unsigned long strobeTimeMs = 100; // 2 s
 bool strobeConsumed = false;
 
 #include <math.h>
