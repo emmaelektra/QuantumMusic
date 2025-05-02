@@ -166,7 +166,7 @@ def calculate_logic():
 measured_event = threading.Event()
 
 def calculate_pulse(total_pulse_time, strobe_time):
-    num_pixels     = 1000
+    num_pixels = 1000
     time_per_pixel = total_pulse_time / num_pixels
 
     # Push refresh_rate into your ESPs once
