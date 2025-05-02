@@ -5,13 +5,13 @@ import threading
 import time
 from ESP32Class import ESPLED
 import subprocess
+import math
 
 # Launch the GUI script in a separate process
 try:
     subprocess.Popen(["python3", "histogramUDP.py"])
 except Exception as e:
     print(f"❌ Failed to start histogramUDP.py: {e}")
-
 
 PORT = 80
 
@@ -117,7 +117,7 @@ def handle_esps(udp_socket):
             print(f"❌ Unknown esp_id: {esp_id}")
             continue
 
-        #print(f"📡 Data from ESP2: {ESP2.refresh_rate}")
+        print(f"📡 Data from ESP3: {ESP3.output_intensity1, ESP3.output_intensity2}")
         #print(f"📡 Data from ESP3: {ESP3.output_brightness_1, ESP3.output_brightness_2}")
         #print(f"📡 Data from ESP4: {ESP4.entanglement}")
         #print({decoded})
@@ -127,18 +127,39 @@ def handle_esps(udp_socket):
         #print(f"📡 Data from ESP6: {ESP6.response_data}, Decoded: {decoded}, ESP6 Input 1: {ESP4.output_brightness_2} Input 2: {ESP5.output_brightness_1} Output1: {ESP6.output_brightness_1}, Output2: {ESP6.output_brightness_2}")
     #print(ESP3.response_data)
 
+E1_0 = math.sqrt(max_brightness) * math.cos(0)
+E2_0 = 0
+E3_0 = math.sqrt(max_brightness) * math.cos(0)
+E4_0 = 0
+
 def calculate_logic():
     """Calculates brightness values based on received ESP data."""
     while True:
         try:
-            ESP1.get_output(channel_1_brightness, channel_2_brightness, 0, 0, max_brightness)
-            ESP2.get_output(channel_3_brightness, channel_4_brightness, 0, 0, max_brightness)
-            ESP3.get_output(ESP1.output_brightness_2, ESP2.output_brightness_1, ESP1.entanglement, ESP2.entanglement, max_brightness)
-            ESP4.get_output(ESP1.output_brightness_1, ESP3.output_brightness_1, ESP1.entanglement, ESP3.entanglement, max_brightness)
-            ESP5.get_output(ESP3.output_brightness_2, ESP2.output_brightness_2, ESP3.entanglement, ESP2.entanglement, max_brightness)
-            ESP6.get_output(ESP4.output_brightness_2, ESP5.output_brightness_1, ESP4.entanglement, ESP5.entanglement, max_brightness)
+            phi1 = ESP4.phaseVal1
+            phi2 = ESP3.phaseVal2
+            phi3 = ESP4.phaseVal1
+
+            r1, t1 = ESP1.r, ESP1.t
+            r2, t2 = ESP2.r, ESP2.t
+            r3, t3 = ESP3.r, ESP3.t
+            r4, t4 = ESP4.r, ESP4.t
+            r5, t5 = ESP5.r, ESP5.t
+            r6, t6 = ESP6.r, ESP6.t
+
+            E1_1 = ESP1.E1_1
+            E2_1 = ESP1.E2_1
+            E3_1 = ESP2.E3_1
+            E4_1 = ESP2.E4_1
+
+            E2_2 = ESP3.E2_2
+            E3_2 = ESP3.E3_2
+
+            ESP1.get_output(E1_0, E2_0, E3_0, E4_0, E1_1, E2_1, E3_1, E4_1, E2_2, E3_2, t1, t2, t3, t4, t5, t6, r1, r2, r3, r4, r5, r6, phi1, phi2, phi3)
+            ESP2.get_output(E1_0, E2_0, E3_0, E4_0, E1_1, E2_1, E3_1, E4_1, E2_2, E3_2, t1, t2, t3, t4, t5, t6, r1, r2, r3, r4, r5, r6, phi1, phi2, phi3)
+            ESP3.get_output(E1_0, E2_0, E3_0, E4_0, E1_1, E2_1, E3_1, E4_1, E2_2, E3_2, t1, t2, t3, t4, t5, t6, r1, r2, r3, r4, r5, r6, phi1, phi2, phi3)
             # (Additional logic for other ESPs can be enabled as needed)
-            time.sleep(0.0001)  # Prevent excessive CPU usage
+            time.sleep(0.01)  # Prevent excessive CPU usage
         except Exception as e:
             print(f"❌ Error in logic calculation: {e}")
 
