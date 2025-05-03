@@ -1,4 +1,5 @@
 import math
+import cmath
 
 class ESPLED:
     def __init__(self, ip, id, pot_value, pot_value_ps_1=None, pot_value_ps_2=None):
@@ -24,6 +25,10 @@ class ESPLED:
         self.input_intensity2 = 0
         self.output_intensity1 = 0
         self.output_intensity2 = 0
+        self.Ein_1 = 0
+        self.Ein_2 = 0
+        self.Eout_1 = 0
+        self.Eout_2 = 0
         self.entanglement = 0
         self.entanglement2 = 0
         self.previous_entanglement1 = 0
@@ -38,51 +43,38 @@ class ESPLED:
         self.t = 0
         self.r = 0
 
-        self.E1_1 = self.E2_1 = self.E3_1 = self.E4_1 = self.E1_2 = self.E2_2 = self.E3_2 = self.E4_2 = 0
 
-
-    def get_output(self, E1_0, E2_0, E3_0, E4_0, E1_1, E2_1, E3_1, E4_1, E2_2, E3_2, t1, t2, t3, t4, t5, t6, r1, r2, r3, r4, r5, r6, phi1, phi2, phi3):
+    def get_output(self, Ein_1, Ein_2):
         # Initialise output variables
         self.t, self.r = self.pot_value / 4095, 1 - (self.pot_value / 4095)
-        #self.E2_1 = E2_1
-        #self.E3_1 = E3_1
+
         # Beam splitter transformations
-        if self.id == 1:
-            self.E1_1 = int(math.sqrt(r1) * E1_0 + math.sqrt(t1) * E2_0)
-            self.E2_1 = int(math.sqrt(t1) * E1_0 - math.sqrt(r1) * E2_0)
-            self.input_intensity1 = int(abs(E1_0)**2)
-            self.input_intensity2 = int(abs(E2_0)**2)
-
-            self.output_intensity1 = int(abs(E1_1)**2)
-            self.output_intensity2 = int(abs(E2_1)**2)
-            #return E1_1, E2_1
-        elif self.id == 2:
-            self.E3_1 = int((math.sqrt(r2) * E3_0 + math.sqrt(t2) * E4_0)*math.cos(phi2))
-            self.E4_1 = int((math.sqrt(t2) * E3_0 - math.sqrt(r2) * E4_0)*math.cos(phi2))
-            self.input_intensity1 = int(abs(E3_0) ** 2)
-            self.input_intensity2 = int(abs(E4_0) ** 2)
-
-            self.output_intensity1 = int(abs(E3_1) ** 2)
-            self.output_intensity2 = int(abs(E4_1) ** 2)
-            #return E3_1, E4_1
-        elif self.id == 3:
-            self.phaseVal1 = 0
+        if self.id == 3:
             self.phaseVal2 = round(((self.pot_value_ps_1 / 4095) * 2 * math.pi), 3)
-            self.E2_2 = (math.sqrt(r3) * E2_1 + math.sqrt(t3) * E3_1) * math.cos(phi2)
-            self.E3_2 = math.sqrt(t3) * E2_1 - math.sqrt(r3) * E3_1
+            Ein2_ps = Ein_2 * cmath.exp(1j * self.phaseVal2)
 
-            self.input_intensity2 = int(abs(E3_1)**2)
-
-            self.output_intensity1 = int(abs(E2_2)**2)
-            self.output_intensity2 = int(abs(E3_2)**2)
+            self.Eout_1 = math.sqrt(self.r) * Ein_1 + math.sqrt(self.t) * Ein2_ps
+            self.Eout_2 = math.sqrt(self.t) * Ein_1 - math.sqrt(self.r) * Ein2_ps
 
         elif self.id == 4:
             self.phaseVal1 = round(((self.pot_value_ps_1 / 4095) * 2 * math.pi), 3)
-            self.phaseVal2 = round(((self.pot_value_ps_1 / 4095) * 2 * math.pi), 3)
+            self.phaseVal2 = round(((self.pot_value_ps_2 / 4095) * 2 * math.pi), 3)
+            Ein1_ps = Ein_1 * cmath.exp(1j * self.phaseVal1)
+            Ein2_ps = Ein_2 * cmath.exp(1j * self.phaseVal2)
+
+            self.Eout_1 = math.sqrt(self.r) * Ein1_ps + math.sqrt(self.t) * Ein2_ps
+            self.Eout_2 = math.sqrt(self.t) * Ein1_ps - math.sqrt(self.r) * Ein2_ps
 
         else:
-            self.phaseVal1 = 0
-            self.phaseVal2 = 0
+            self.Eout_1 = math.sqrt(self.r) * Ein_1 + math.sqrt(self.t) * Ein_2
+            self.Eout_2 = math.sqrt(self.t) * Ein_1 - math.sqrt(self.r) * Ein_2
+
+        # Calculate intensities for all ESPs
+        self.input_intensity1 = int(abs(Ein_1) ** 2)
+        self.input_intensity2 = int(abs(Ein_2) ** 2)
+
+        self.output_intensity1 = int(abs(self.Eout_1) ** 2)
+        self.output_intensity2 = int(abs(self.Eout_2) ** 2)
         """
         # Update output data
         self.input_intensity1 = input_intensity1 if input_intensity1 >= 0 else 0

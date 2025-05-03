@@ -9,6 +9,14 @@ import socket
 import json
 import matplotlib.font_manager as fm
 import threading
+import signal
+import sys
+
+def handle_sigterm(signum, frame):
+    print("🛑 Received SIGTERM, shutting down histogramUDP.py")
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, handle_sigterm)
 
 # --------------------- Font Setup ---------------------
 minion_path = '/Users/emmasokoll/Library/Fonts/MinionPro-Regular.otf'

@@ -67,12 +67,12 @@ unsigned long lastUpdateTimeLED = 0;
 int thisfade = 1;
 
 // Pulse parameters
-int pulse_bright = 50;
+uint8_t pulse_boost = 255;
 
 // Strobe parameters
-bool     strobeActive      = false;
+bool strobeActive = false;
 unsigned long strobeStartMs = 0;
-const unsigned long strobeTimeMs = 100; // 2 s
+const unsigned long strobeTimeMs = 2000; // 2 s
 bool strobeConsumed = false;
 
 #include <math.h>
@@ -101,7 +101,6 @@ void updateLEDs() {
   strobeStartMs  = now;
   strobeConsumed = true;
   }
-
 
   // ——— 2) Strip 1: moving phaser ———
   for (int i = 0; i < NUM_LEDS1; i++) {
@@ -160,28 +159,32 @@ void updateLEDs() {
   }
 
   // ——— 5) Photon pulse across all strips ———
-  if (pulse1 > 400 && pulse1 <= 1000) {
+  if (pulse1 > 400 && pulse1 < 1000) {
     int cp = pulse1 - 400;
     // strip1
-    if (cp < 200) {
+    if (cp < 200 && brightness1 != 0) {
       int idx = 200 - cp;
-      leds1[idx] = CRGB::White; leds1[idx].nscale8(brightness1 + pulse_bright);
+      leds1[idx] = CRGB::White; leds1[idx].nscale8(pulse_boost);
     }
     // strip2
-    if (cp >= 100 && cp < 200) {
+    if (cp >= 100 && cp < 200 && brightness2 != 0) {
       int idx = 200 - cp;
-      leds2[idx] = CRGB::White; leds2[idx].nscale8(brightness2 + pulse_bright);
+      leds2[idx] = CRGB::White; leds2[idx].nscale8(pulse_boost);
     }
     // strip3
-    if (cp >= 200 && cp < 600) {
+    if (cp >= 200 && cp < 600 && brightness3 != 0) {
       int idx = cp - 200;
-      leds3[idx] = CRGB::White; leds3[idx].nscale8(brightness3 + pulse_bright);
+      leds3[idx] = CRGB::White; leds3[idx].nscale8(pulse_boost);
     }
     // strip4
-    if (cp >= 200 && cp < 400) {
+    if (cp >= 200 && cp < 400 && brightness4 != 0) {
       int idx = cp - 200;
-      leds4[idx] = CRGB::White; leds4[idx].nscale8(brightness4 + pulse_bright);
+      leds4[idx] = CRGB::White; leds4[idx].nscale8(pulse_boost);
     }
+  }
+
+   if (pulse1 == -1){
+    leds3[399] = CRGB::White; leds3[300].nscale8(brightness3);
   }
 
   if (strobeActive) {
@@ -208,7 +211,6 @@ void updateLEDs() {
       strobeActive = false;  // end of strobe window
     }
   }
-
 
   // ——— 4) Push to LEDs ———
   FastLED.show();

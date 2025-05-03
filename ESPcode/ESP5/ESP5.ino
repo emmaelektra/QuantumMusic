@@ -65,10 +65,30 @@ int thisfade = 1;
 // Pulse parameters
 int pulse_bright = 50;
 
+// Strobe parameters
+bool strobeActive = false;
+unsigned long strobeStartMs = 0;
+const unsigned long strobeTimeMs = 2000; // 2 s
+bool strobeConsumed = false;
+
 WiFiClient laptopClient;
 WiFiUDP udp;
 
 void updateLEDs() {
+    if (!strobe1) {
+    strobeConsumed = false;
+  }
+
+  unsigned long now = millis();
+
+  // ——— 1) Detect strobe start (rising edge) ———
+  if (strobe1 && !strobeActive && !strobeConsumed) {
+  // only trigger once
+  strobeActive   = true;
+  strobeStartMs  = now;
+  strobeConsumed = true;
+  }
+
   // Entanglement on strips 3 and 4
   int sparkleBoost = map(entanglement1, 0, 20, 0, 255);
   fadeToBlackBy(leds3, NUM_LEDS3, thisfade);
@@ -122,13 +142,38 @@ void updateLEDs() {
 
   if (pulse1 > 600 && pulse1 < 1000 && pulse1 != -1) {
     int currentpixel = pulse1 - 600;
-    if (currentpixel < 200) {
+    if (currentpixel < 200 && brightness3 != 0) {
       leds3[currentpixel] = CRGB::White;
       leds3[currentpixel].nscale8(brightness3+pulse_bright);
     }
-    if (currentpixel < 400) {
+    if (currentpixel < 400 && brightness4 != 0) {
       leds4[currentpixel] = CRGB::White;
       leds4[currentpixel].nscale8(brightness4+pulse_bright);
+    }
+  }
+
+  if (strobeActive) {
+    unsigned long dt = now - strobeStartMs;
+    if (dt < strobeTimeMs) {
+      // overall amplitude: 0→1→0 over strobeTimeMs
+      float phase = float(dt) / float(strobeTimeMs);
+      float amp   = sinf(phase * M_PI);      // 0→1→0
+
+      const int glowLen = 30;                // number of LEDs lighting up
+      for (int off = 0; off < glowLen; off++) {
+        int idx = NUM_LEDS3 - 1 - off;        // tip inward
+        if (idx < 0) break;
+
+        // shape: base (off=0) bright, tip (off=glowLen-1) dark
+        float falloff = 1.0f - float(off) / float(glowLen - 1);
+        float intensity = amp * falloff;      // modulate by amp
+
+        uint8_t b = uint8_t(intensity * 255);
+        CRGB glow = CRGB::White; glow.nscale8(b);
+        leds3[idx] += glow;
+      }
+    } else {
+      strobeActive = false;  // end of strobe window
     }
   }
   FastLED.show();

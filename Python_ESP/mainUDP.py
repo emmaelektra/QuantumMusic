@@ -6,12 +6,27 @@ import time
 from ESP32Class import ESPLED
 import subprocess
 import math
+import os
+import signal
+import atexit
+import time
 
 # Launch the GUI script in a separate process
 try:
     subprocess.Popen(["python3", "histogramUDP.py"])
 except Exception as e:
     print(f"❌ Failed to start histogramUDP.py: {e}")
+
+# Function to clean up on exit
+def cleanup():
+    print("🧹 Cleaning up histogramUDP.py...")
+    try:
+        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+    except Exception as e:
+        print(f"⚠️ Could not terminate child process: {e}")
+
+# Register cleanup function to run on exit
+atexit.register(cleanup)
 
 PORT = 80
 
@@ -117,7 +132,7 @@ def handle_esps(udp_socket):
             print(f"❌ Unknown esp_id: {esp_id}")
             continue
 
-        print(f"📡 Data from ESP2: {ESP2.output_intensity1, ESP2.output_intensity2}")
+        print(f"📡 Data from ESP6: {ESP6.output_intensity1, ESP6.output_intensity2}")
         #print(f"📡 Data from ESP3: {ESP3.output_brightness_1, ESP3.output_brightness_2}")
         #print(f"📡 Data from ESP4: {ESP4.entanglement}")
         #print({decoded})
@@ -136,28 +151,32 @@ def calculate_logic():
     """Calculates brightness values based on received ESP data."""
     while True:
         try:
-            phi1 = ESP4.phaseVal1
-            phi2 = ESP3.phaseVal2
-            phi3 = ESP4.phaseVal1
+            E1_1 = ESP1.Eout_1
+            E2_1 = ESP1.Eout_2
+            E3_1 = ESP2.Eout_1
+            E4_1 = ESP2.Eout_2
 
-            r1, t1 = ESP1.r, ESP1.t
-            r2, t2 = ESP2.r, ESP2.t
-            r3, t3 = ESP3.r, ESP3.t
-            r4, t4 = ESP4.r, ESP4.t
-            r5, t5 = ESP5.r, ESP5.t
-            r6, t6 = ESP6.r, ESP6.t
+            E1_2 = E1_1
+            E2_2 = ESP3.Eout_1
+            E3_2 = ESP3.Eout_2
+            E4_2 = E4_1
 
-            E1_1 = ESP1.E1_1
-            E2_1 = ESP1.E2_1
-            E3_1 = ESP2.E3_1
-            E4_1 = ESP2.E4_1
+            E1_3 = ESP4.Eout_1
+            E2_3 = ESP4.Ein_2
+            E3_3 = ESP5.Eout_1
+            E4_3 = ESP5.Eout_2
 
-            E2_2 = ESP3.E2_2
-            E3_2 = ESP3.E3_2
+            E1_4 = ESP4.Eout_1
+            E2_4 = ESP6.Eout_1
+            E3_4 = ESP6.Eout_2
+            E4_4 = ESP5.Eout_2
 
-            ESP1.get_output(E1_0, E2_0, E3_0, E4_0, E1_1, E2_1, E3_1, E4_1, E2_2, E3_2, t1, t2, t3, t4, t5, t6, r1, r2, r3, r4, r5, r6, phi1, phi2, phi3)
-            ESP2.get_output(E1_0, E2_0, E3_0, E4_0, E1_1, E2_1, E3_1, E4_1, E2_2, E3_2, t1, t2, t3, t4, t5, t6, r1, r2, r3, r4, r5, r6, phi1, phi2, phi3)
-            ESP3.get_output(E1_0, E2_0, E3_0, E4_0, E1_1, E2_1, E3_1, E4_1, E2_2, E3_2, t1, t2, t3, t4, t5, t6, r1, r2, r3, r4, r5, r6, phi1, phi2, phi3)
+            ESP1.get_output(E1_0, E2_0)
+            ESP2.get_output(E3_0, E4_0)
+            ESP3.get_output(E2_1, E3_1)
+            ESP4.get_output(E1_2, E2_2)
+            ESP5.get_output(E3_2, E4_2)
+            ESP6.get_output(E2_3, E3_3)
             # (Additional logic for other ESPs can be enabled as needed)
             time.sleep(0.001)  # Prevent excessive CPU usage
         except Exception as e:
@@ -175,18 +194,18 @@ def calculate_pulse(total_pulse_time, strobe_time):
     while True:
         # ——— 1) pulse sweep ———
         for px in range(num_pixels):
-            ESP1.pulse_start = px if px <=   0.4 * num_pixels else -1
-            ESP2.pulse_start = px if px <=   0.6 * num_pixels else -1
-            ESP3.pulse_start = px if 0.3 * num_pixels <= px <= 0.6 * num_pixels else -1
-            ESP4.pulse_start = px if 0.4 * num_pixels <= px <=     num_pixels else -1
-            ESP5.pulse_start = px if 0.6 * num_pixels <= px <=     num_pixels else -1
-            ESP6.pulse_start = px if 0.8 * num_pixels <= px <=     num_pixels else -1
+            ESP1.pulse_start = px if px < 0.4 * num_pixels else -1
+            ESP2.pulse_start = px if px < 0.6 * num_pixels else -1
+            ESP3.pulse_start = px if 0.3 * num_pixels < px <= 0.6 * num_pixels else -1
+            ESP4.pulse_start = px if 0.4 * num_pixels <= px < num_pixels else -1
+            ESP5.pulse_start = px if 0.6 * num_pixels <= px < num_pixels else -1
+            ESP6.pulse_start = px if 0.8 * num_pixels <= px < num_pixels else -1
+            if px == 950:
+                # 1) tell the GUI to sample
+                measured_event.clear()
+                gui_socket.sendto(json.dumps({"sample": True}).encode(), (GUI_IP, GUI_PORT))
 
             time.sleep(time_per_pixel)
-
-        # 1) tell the GUI to sample
-        measured_event.clear()
-        gui_socket.sendto(json.dumps({"sample": True}).encode(), (GUI_IP, GUI_PORT))
 
         # 2) wait (up to 500 ms) for the reply
         if not measured_event.wait(0.3):
@@ -215,7 +234,7 @@ def calculate_pulse(total_pulse_time, strobe_time):
         print("Strobes CLEARED", ESP4.strobe1, ESP6.strobe1, ESP6.strobe2, ESP5.strobe2)
 
         # ——— 5) random inter-cycle delay ———
-        delay = random.uniform(0, 10)
+        delay = random.uniform(0, 15)
         print(f"Waiting {delay:.2f}s for next cycle")
         time.sleep(delay)
 

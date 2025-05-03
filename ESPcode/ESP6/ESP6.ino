@@ -57,12 +57,46 @@ unsigned long lastUpdateTimeLED = 0;
 int thisfade = 1;
 
 // Pulse parameters
-int pulse_bright = 50;
+uint8_t pulse_bright = 255;
+
+// Strobe parameters
+bool     strobeActive1      = false;
+bool     strobeActive2      = false;
+unsigned long strobeStartMs1 = 0;
+unsigned long strobeStartMs2 = 0;
+const unsigned long strobeTimeMs = 2000; // 2 s
+bool strobeConsumed1 = false;
+bool strobeConsumed2 = false;
 
 WiFiClient laptopClient;
 WiFiUDP udp;
 
 void updateLEDs() {
+    // clear our one‐shot as soon as the Python code drops strobe1 back to 0
+  if (!strobe1) {
+    strobeConsumed1 = false;
+  }
+  if (!strobe2) {
+    strobeConsumed2 = false;
+  }
+
+  unsigned long now = millis();
+
+  // ——— 1) Detect strobe start (rising edge) ———
+  if (strobe1 && !strobeActive1 && !strobeConsumed1) {
+  // only trigger once
+  strobeActive1   = true;
+  strobeStartMs1  = now;
+  strobeConsumed1 = true;
+  }
+
+  if (strobe2 && !strobeActive2 && !strobeConsumed2) {
+  // only trigger once
+  strobeActive2   = true;
+  strobeStartMs2  = now;
+  strobeConsumed2 = true;
+  }
+
   // Entanglement on strips 3 and 4
   int sparkleBoost = map(entanglement1, 0, 20, 0, 255);
   fadeToBlackBy(leds3, NUM_LEDS3, thisfade);
@@ -117,10 +151,74 @@ void updateLEDs() {
   if (pulse1 > 800 && pulse1 < 1000 && pulse1 != -1){
     int currentpixel = pulse1 - 800;
     if (currentpixel < 200) {
+      if (brightness3 != 0){
       leds3[currentpixel] = CRGB::White;
-      leds3[currentpixel].nscale8(brightness3+pulse_bright);
+      leds3[currentpixel].nscale8(pulse_bright);
+      }
+      if (brightness4 != 0){
       leds4[currentpixel] = CRGB::White;
-      leds4[currentpixel].nscale8(brightness4+pulse_bright);
+      leds4[currentpixel].nscale8(pulse_bright);
+      }
+    }
+    else {
+      pulse1 = -1;
+    }
+  }
+
+  if (pulse1 == -1) {
+    leds3[NUM_LEDS3-1] = CRGB::White; 
+    leds3[NUM_LEDS3-1].nscale8(brightness3);
+    leds4[NUM_LEDS4] = CRGB::White; 
+    leds4[NUM_LEDS4].nscale8(brightness4);
+  }
+
+  if (strobeActive1) {
+    unsigned long dt = now - strobeStartMs1;
+    if (dt < strobeTimeMs) {
+      // overall amplitude: 0→1→0 over strobeTimeMs
+      float phase = float(dt) / float(strobeTimeMs);
+      float amp   = sinf(phase * M_PI);      // 0→1→0
+
+      const int glowLen = 30;                // number of LEDs lighting up
+      for (int off = 0; off < glowLen; off++) {
+        int idx = NUM_LEDS3 - 1 - off;        // tip inward
+        if (idx < 0) break;
+
+        // shape: base (off=0) bright, tip (off=glowLen-1) dark
+        float falloff = 1.0f - float(off) / float(glowLen - 1);
+        float intensity = amp * falloff;      // modulate by amp
+
+        uint8_t b = uint8_t(intensity * 255);
+        CRGB glow = CRGB::White; glow.nscale8(b);
+        leds3[idx] += glow;
+      }
+    } else {
+      strobeActive1 = false;  // end of strobe window
+    }
+  }
+
+  if (strobeActive2) {
+    unsigned long dt = now - strobeStartMs2;
+    if (dt < strobeTimeMs) {
+      // overall amplitude: 0→1→0 over strobeTimeMs
+      float phase = float(dt) / float(strobeTimeMs);
+      float amp   = sinf(phase * M_PI);      // 0→1→0
+
+      const int glowLen = 30;                // number of LEDs lighting up
+      for (int off = 0; off < glowLen; off++) {
+        int idx = NUM_LEDS3 - 1 - off;        // tip inward
+        if (idx < 0) break;
+
+        // shape: base (off=0) bright, tip (off=glowLen-1) dark
+        float falloff = 1.0f - float(off) / float(glowLen - 1);
+        float intensity = amp * falloff;      // modulate by amp
+
+        uint8_t b = uint8_t(intensity * 255);
+        CRGB glow = CRGB::White; glow.nscale8(b);
+        leds4[idx] += glow;
+      }
+    } else {
+      strobeActive2 = false;  // end of strobe window
     }
   }
   FastLED.show();
