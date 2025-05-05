@@ -63,7 +63,7 @@ unsigned long lastUpdateTimeLED = 0;
 int thisfade = 1;
 
 // Pulse parameters
-int pulse_bright = 50;
+uint8_t pulse_bright = 255;
 
 // Strobe parameters
 bool strobeActive = false;
@@ -75,14 +75,14 @@ WiFiClient laptopClient;
 WiFiUDP udp;
 
 void updateLEDs() {
-    if (!strobe1) {
+    if (!strobe2) {
     strobeConsumed = false;
   }
 
   unsigned long now = millis();
 
   // ——— 1) Detect strobe start (rising edge) ———
-  if (strobe1 && !strobeActive && !strobeConsumed) {
+  if (strobe2 && !strobeActive && !strobeConsumed) {
   // only trigger once
   strobeActive   = true;
   strobeStartMs  = now;
@@ -144,11 +144,11 @@ void updateLEDs() {
     int currentpixel = pulse1 - 600;
     if (currentpixel < 200 && brightness3 != 0) {
       leds3[currentpixel] = CRGB::White;
-      leds3[currentpixel].nscale8(brightness3+pulse_bright);
+      leds3[currentpixel].nscale8(pulse_bright);
     }
     if (currentpixel < 400 && brightness4 != 0) {
       leds4[currentpixel] = CRGB::White;
-      leds4[currentpixel].nscale8(brightness4+pulse_bright);
+      leds4[currentpixel].nscale8(pulse_bright);
     }
   }
 
@@ -161,7 +161,7 @@ void updateLEDs() {
 
       const int glowLen = 30;                // number of LEDs lighting up
       for (int off = 0; off < glowLen; off++) {
-        int idx = NUM_LEDS3 - 1 - off;        // tip inward
+        int idx = NUM_LEDS4 - 1 - off;        // tip inward
         if (idx < 0) break;
 
         // shape: base (off=0) bright, tip (off=glowLen-1) dark
@@ -170,7 +170,7 @@ void updateLEDs() {
 
         uint8_t b = uint8_t(intensity * 255);
         CRGB glow = CRGB::White; glow.nscale8(b);
-        leds3[idx] += glow;
+        leds4[idx] += glow;
       }
     } else {
       strobeActive = false;  // end of strobe window
@@ -289,10 +289,10 @@ void loop() {
     }
 
     // Now assign variables from csv
-    brightness1    = values[0]/2;
-    brightness2    = values[1]/2;
-    brightness3    = values[2]/2;
-    brightness4    = values[3]/2;
+    brightness1    = values[0];
+    brightness2    = values[1];
+    brightness3    = values[2];
+    brightness4    = values[3];
     phaseShift1    = values[4];
     phaseShift2    = values[5];
     entanglement1  = values[6];

@@ -36,7 +36,7 @@ class ESPLED:
         #self.pulse1 = None
         #self.pulse2 = None
         self.pulse_start = None
-        self.refresh_rate = None
+        self.max_brightness = 0
         self.strobe1 = None
         self.strobe2 = None
 
@@ -44,9 +44,10 @@ class ESPLED:
         self.r = 0
 
 
-    def get_output(self, Ein_1, Ein_2):
+    def get_output(self, Ein_1, Ein_2, max_brightness):
         # Initialise output variables
         self.t, self.r = self.pot_value / 4095, 1 - (self.pot_value / 4095)
+        self.max_brightness = max_brightness
 
         # Beam splitter transformations
         if self.id == 3:
@@ -146,7 +147,7 @@ class ESPLED:
             self.entanglement,
             self.entanglement2,
             self.pulse_start,
-            self.refresh_rate,
+            self.max_brightness,
             self.strobe1,
             self.strobe2
         ]

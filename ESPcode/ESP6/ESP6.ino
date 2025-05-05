@@ -164,13 +164,13 @@ void updateLEDs() {
       pulse1 = -1;
     }
   }
-
+  /*
   if (pulse1 == -1) {
     leds3[NUM_LEDS3-1] = CRGB::White; 
     leds3[NUM_LEDS3-1].nscale8(brightness3);
     leds4[NUM_LEDS4] = CRGB::White; 
     leds4[NUM_LEDS4].nscale8(brightness4);
-  }
+  }*/
 
   if (strobeActive1) {
     unsigned long dt = now - strobeStartMs1;
@@ -315,10 +315,10 @@ void loop() {
     }
 
     // Now assign variables from csv
-    brightness1    = values[0]/2;
-    brightness2    = values[1]/2;
-    brightness3    = values[2]/2;
-    brightness4    = values[3]/2;
+    brightness1    = values[0];
+    brightness2    = values[1];
+    brightness3    = values[2];
+    brightness4    = values[3];
     phaseShift1    = values[4];
     phaseShift2    = values[5];
     entanglement1  = values[6];

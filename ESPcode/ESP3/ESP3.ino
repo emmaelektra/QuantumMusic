@@ -65,7 +65,7 @@ int thisfade = 1;
 //float sparkleBoost = map(entanglement1, 1, 15, 130, 255) / 100.0;  // range: 1.3 to 2.55 (alternative mapping)
 
 // Pulse parameters
-int pulse_bright = 50;
+uint8_t pulse_bright = 255;
 
 WiFiClient laptopClient;
 WiFiUDP udp;
@@ -134,17 +134,17 @@ void updateLEDs() {
 
   if (pulse1 > 300 && pulse1 < 600 && pulse1 != -1) {
     int currentpixel = pulse1 - 300;
-    if (currentpixel < 100){
+    if (currentpixel < 100 && brightness2 != 0){
       leds2[100-currentpixel] = CRGB::White;
-      leds2[100-currentpixel].nscale8(brightness2+pulse_bright);
+      leds2[100-currentpixel].nscale8(pulse_bright);
     }
-    if (currentpixel >= 100 && currentpixel < 200){
+    if (currentpixel >= 100 && currentpixel < 200 && brightness3 != 0){
       leds3[currentpixel-100] = CRGB::White;
-      leds3[currentpixel-100].nscale8(brightness3+pulse_bright);
+      leds3[currentpixel-100].nscale8(pulse_bright);
     }
-    if (currentpixel >= 100 && currentpixel < 300){
+    if (currentpixel >= 100 && currentpixel < 300 && brightness4 != 0){
       leds4[currentpixel-100] = CRGB::White;
-      leds4[currentpixel-100].nscale8(brightness4+pulse_bright);
+      leds4[currentpixel-100].nscale8(pulse_bright);
     }
   }
 
@@ -246,10 +246,10 @@ void loop() {
     }
 
     // Now assign variables from csv
-    brightness1    = values[0]/2;
-    brightness2    = values[1]/2;
-    brightness3    = values[2]/2;
-    brightness4    = values[3]/2;
+    brightness1    = values[0];
+    brightness2    = values[1];
+    brightness3    = values[2];
+    brightness4    = values[3];
     phaseShift1    = values[4];
     phaseShift2    = values[5];
     entanglement1  = values[6];

@@ -312,10 +312,10 @@ void loop() {
     }
 
     // Now assign variables from csv
-    brightness1    = values[0]/2;
-    brightness2    = values[1]/2;
-    brightness3    = values[2]/2;
-    brightness4    = values[3]/2;
+    brightness1    = values[0];
+    brightness2    = values[1];
+    brightness3    = values[2];
+    brightness4    = values[3];
     phaseShift1    = values[4];
     phaseShift2    = values[5];
     entanglement1  = values[6];

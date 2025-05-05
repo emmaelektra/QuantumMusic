@@ -64,7 +64,7 @@ unsigned long lastUpdateRecieve = 0;
 int thisfade = 1;
 
 // Pulse parameters
-int pulse_bright = 5;
+uint8_t pulse_bright = 255;
 
 WiFiClient laptopClient;
 WiFiUDP udp;
@@ -133,22 +133,26 @@ void updateLEDs() {
     int currentpixel = pulse1;
     if (currentpixel < 200){
       int pix = 200-(int)currentpixel;
-      leds1[pix] = CRGB::White;
-      leds1[pix].nscale8(map(brightness1, 0, 77, 0, 255));
-      leds2[pix] = CRGB::White;
-      leds2[pix].nscale8(map(brightness2, 0, 77, 0, 255));
+      if (brightness1 != 0)
+      {leds1[pix] = CRGB::White;
+      leds1[pix].nscale8(pulse_bright);
+      }
+      if (brightness2 != 0) 
+      {leds2[pix] = CRGB::White;
+      leds2[pix].nscale8(pulse_bright);
+      }
     }
-    if (currentpixel >= 200 && currentpixel < 300){
+    if (currentpixel >= 200 && currentpixel < 300 && brightness3 != 0){
       int pix = (int)currentpixel-200;
       leds3[pix] = CRGB::White;
-      leds3[pix].nscale8(map(brightness3, 0, 77, 0, 255));
+      leds3[pix].nscale8(pulse_bright);
       leds4[pix] = CRGB::White;
-      leds4[pix].nscale8(map(brightness4, 0, 77, 0, 255));
+      leds4[pix].nscale8(pulse_bright);
     }
-    if (currentpixel >= 300 && currentpixel < 600){
+    if (currentpixel >= 300 && currentpixel < 600 && brightness4 != 0){
       int pix = (int)currentpixel-200;
       leds4[pix] = CRGB::White;
-      leds4[pix].nscale8(map(brightness4, 0, 77, 0, 255));
+      leds4[pix].nscale8(pulse_bright);
     }
   }
   FastLED.show();
@@ -247,10 +251,10 @@ void loop() {
     }
 
     // Now assign variables from csv
-    brightness1    = values[0]/2;
-    brightness2    = values[1]/2;
-    brightness3    = values[2]/2;
-    brightness4    = values[3]/2;
+    brightness1    = values[0];
+    brightness2    = values[1];
+    brightness3    = values[2];
+    brightness4    = values[3];
     phaseShift1    = values[4];
     phaseShift2    = values[5];
     entanglement1  = values[6];

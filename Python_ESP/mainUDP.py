@@ -6,6 +6,7 @@ import time
 from ESP32Class import ESPLED
 import subprocess
 import math
+import cmath
 import os
 import signal
 import atexit
@@ -48,7 +49,7 @@ def listen_for_measured_state():
         print(f"📩 Received measured_state: {latest_measured_state}")
         measured_event.set()  # ← wake up calculate_pulse()
 
-max_brightness = 50
+max_brightness = 60
 channel_1_brightness = max_brightness
 channel_2_brightness = 0
 channel_3_brightness = max_brightness
@@ -132,19 +133,11 @@ def handle_esps(udp_socket):
             print(f"❌ Unknown esp_id: {esp_id}")
             continue
 
-        print(f"📡 Data from ESP6: {ESP6.output_intensity1, ESP6.output_intensity2}")
-        #print(f"📡 Data from ESP3: {ESP3.output_brightness_1, ESP3.output_brightness_2}")
-        #print(f"📡 Data from ESP4: {ESP4.entanglement}")
-        #print({decoded})
-        #print(f"📡 Data from ESP5: {ESP5.output_brightness_1, ESP5.output_brightness_2, ESP5.entanglement, ESP5.previous_entanglement1, ESP5.previous_entanglement2}")
-        #if ESP2.output_brightness_2 == 0 and ESP3.entanglement != 0:
-        #    print("ESP5 repeated")
-        #print(f"📡 Data from ESP6: {ESP6.response_data}, Decoded: {decoded}, ESP6 Input 1: {ESP4.output_brightness_2} Input 2: {ESP5.output_brightness_1} Output1: {ESP6.output_brightness_1}, Output2: {ESP6.output_brightness_2}")
-    #print(ESP3.response_data)
+        print(f"📡 Data from ESP1: {ESP1.output_intensity1, ESP1.output_intensity2, ESP1.pulse_start}")
 
-E1_0 = math.sqrt(max_brightness) * math.cos(0)
+E1_0 = math.sqrt(max_brightness) * cmath.exp(1j * 0)
 E2_0 = 0
-E3_0 = math.sqrt(max_brightness) * math.cos(0)
+E3_0 = math.sqrt(max_brightness) * cmath.exp(1j * 0)
 E4_0 = 0
 
 def calculate_logic():
@@ -171,12 +164,12 @@ def calculate_logic():
             E3_4 = ESP6.Eout_2
             E4_4 = ESP5.Eout_2
 
-            ESP1.get_output(E1_0, E2_0)
-            ESP2.get_output(E3_0, E4_0)
-            ESP3.get_output(E2_1, E3_1)
-            ESP4.get_output(E1_2, E2_2)
-            ESP5.get_output(E3_2, E4_2)
-            ESP6.get_output(E2_3, E3_3)
+            ESP1.get_output(E1_0, E2_0, max_brightness)
+            ESP2.get_output(E3_0, E4_0, max_brightness)
+            ESP3.get_output(E2_1, E3_1, max_brightness)
+            ESP4.get_output(E1_2, E2_2, max_brightness)
+            ESP5.get_output(E3_2, E4_2, max_brightness)
+            ESP6.get_output(E2_3, E3_3, max_brightness)
             # (Additional logic for other ESPs can be enabled as needed)
             time.sleep(0.001)  # Prevent excessive CPU usage
         except Exception as e:
@@ -196,11 +189,11 @@ def calculate_pulse(total_pulse_time, strobe_time):
         for px in range(num_pixels):
             ESP1.pulse_start = px if px < 0.4 * num_pixels else -1
             ESP2.pulse_start = px if px < 0.6 * num_pixels else -1
-            ESP3.pulse_start = px if 0.3 * num_pixels < px <= 0.6 * num_pixels else -1
-            ESP4.pulse_start = px if 0.4 * num_pixels <= px < num_pixels else -1
-            ESP5.pulse_start = px if 0.6 * num_pixels <= px < num_pixels else -1
-            ESP6.pulse_start = px if 0.8 * num_pixels <= px < num_pixels else -1
-            if px == 950:
+            ESP3.pulse_start = px if 0.3 * num_pixels < px < 0.6 * num_pixels else -1
+            ESP4.pulse_start = px if 0.4 * num_pixels < px < num_pixels else -1
+            ESP5.pulse_start = px if 0.6 * num_pixels < px < num_pixels else -1
+            ESP6.pulse_start = px if 0.8 * num_pixels < px < num_pixels else -1
+            if px == 970:
                 # 1) tell the GUI to sample
                 measured_event.clear()
                 gui_socket.sendto(json.dumps({"sample": True}).encode(), (GUI_IP, GUI_PORT))
