@@ -63,6 +63,12 @@ unsigned long lastUpdateTimeOTA = 0;
 unsigned long lastUpdateTimePOT = 10;
 unsigned long lastUpdateTimeLED = 0;  
 
+// Phase shift parameters
+constexpr int PHASER_LEN1 = 40;  // how many LEDs at the front get the full phaser  
+constexpr int PHASER_LEN2 = 40;
+constexpr int FADE_LEN1   = 5;  // over how many LEDs to cross-fade  
+constexpr int FADE_LEN2   = 5;  // over how many LEDs to cross-fade  
+
 //Entanglement parameters
 int thisfade = 1;
 
@@ -102,19 +108,59 @@ void updateLEDs() {
   strobeConsumed = true;
   }
 
-  // ——— 2) Strip 1: moving phaser ———
+  // ——— Strip 1: phaser at the end, fading into glow ———
   for (int i = 0; i < NUM_LEDS1; i++) {
-    // sin8 returns 0–255; scale brightness1 by it
-    int v = (brightness1 * sin8((i + phaseShift1) * 15)) / 255;
+    // flat glow value
+    uint8_t glow    = brightness1;
+    // will hold our final brightness for this LED
+    uint8_t finalV;
+
+    if (i < NUM_LEDS1 - (PHASER_LEN1 + FADE_LEN1)) {
+      // 1) Far from the end → solid glow
+      finalV = glow;
+
+    } else if (i < NUM_LEDS1 - PHASER_LEN1) {
+      // 2) Fade region
+      //   t: 0.0 at start of fade, → 1.0 at beginning of phaser
+      float t = float(i - (NUM_LEDS1 - (PHASER_LEN1 + FADE_LEN1))) / FADE_LEN1;
+
+      // compute phaser at this relative position
+      int relPos = i - (NUM_LEDS1 - (PHASER_LEN1 + FADE_LEN1));
+      int ph = (brightness1 * sin8((relPos + phaseShift1 * 3) * 18)) / 255;
+
+      // cross-fade: glow*(t) + ph*(1 - t)
+      finalV = uint8_t(glow * t + ph * (1.0 - t));
+
+    } else {
+      // 3) Full phaser region: last PHASER_LEN LEDs
+      int relPos = i - (NUM_LEDS1 - PHASER_LEN1);
+      finalV = (brightness1 * sin8((relPos + phaseShift1 * 3) * 18)) / 255;
+    }
+
     leds1[i] = CRGB::White;
-    leds1[i].nscale8(v);
+    leds1[i].nscale8(finalV);
   }
 
-  // ——— 3) Strip 2: moving phaser ———
+  // ——— Strip 2: exactly the same, but using brightness2 and phaseShift2 ———
   for (int i = 0; i < NUM_LEDS2; i++) {
-    int v = (brightness2 * sin8((i + phaseShift2) * 15)) / 255;
+    uint8_t glow = brightness2, finalV;
+
+    if (i < NUM_LEDS2 - (PHASER_LEN2 + FADE_LEN2)) {
+      finalV = glow;
+    }
+    else if (i < NUM_LEDS2 - PHASER_LEN2) {
+      float t = float(i - (NUM_LEDS2 - (PHASER_LEN2 + FADE_LEN2))) / FADE_LEN2;
+      int relPos = i - (NUM_LEDS2 - (PHASER_LEN2 + FADE_LEN2));
+      int ph = (brightness2 * sin8((relPos + phaseShift2 * 3) * 18)) / 255;
+      finalV = uint8_t(glow * t + ph * (1.0 - t));
+    }
+    else {
+      int relPos = i - (NUM_LEDS2 - PHASER_LEN2);
+      finalV = (brightness2 * sin8((relPos + phaseShift2 * 3) * 18)) / 255;
+    }
+
     leds2[i] = CRGB::White;
-    leds2[i].nscale8(v);
+    leds2[i].nscale8(finalV);
   }
 
   // ——— 4) Entanglement/twinkle on strip 3 & 4 ———
@@ -194,7 +240,7 @@ void updateLEDs() {
       float phase = float(dt) / float(strobeTimeMs);
       float amp   = sinf(phase * M_PI);      // 0→1→0
 
-      const int glowLen = 30;                // number of LEDs lighting up
+      const int glowLen = 70;                // number of LEDs lighting up
       for (int off = 0; off < glowLen; off++) {
         int idx = NUM_LEDS3 - 1 - off;        // tip inward
         if (idx < 0) break;

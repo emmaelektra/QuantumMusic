@@ -59,6 +59,10 @@ unsigned long lastUpdateTimeOTA = 0;
 unsigned long lastUpdateTimePOT = 10;
 unsigned long lastUpdateTimeLED = 0;  
 
+// Phase shift parameters
+constexpr int PHASER_LEN2 = 40;
+constexpr int FADE_LEN2   = 5;  // over how many LEDs to cross-fade  
+
 //Entanglement parameters
 int thisfade = 1;
 //float sparkleBoost = 1.0 + pow(entanglement1 / 15.0, 1.5) * 6.0;  // 1.0 → 3.0 range
@@ -74,9 +78,24 @@ void updateLEDs() {
   int sparkleBoost = map(entanglement1, 0, 15, 0, 255);
   // Phase shifted sine pattern for leds2
   for (int i = 0; i < NUM_LEDS2; i++) {
-    int phasShiftbrightness2 = brightness2 * (sin8((i + phaseShift2) * 15)) / 255;
+    uint8_t glow = brightness2, finalV;
+
+    if (i < NUM_LEDS2 - (PHASER_LEN2 + FADE_LEN2)) {
+      finalV = glow;
+    }
+    else if (i < NUM_LEDS2 - PHASER_LEN2) {
+      float t = float(i - (NUM_LEDS2 - (PHASER_LEN2 + FADE_LEN2))) / FADE_LEN2;
+      int relPos = i - (NUM_LEDS2 - (PHASER_LEN2 + FADE_LEN2));
+      int ph = (brightness2 * sin8((relPos + phaseShift2 * 3) * 18)) / 255;
+      finalV = uint8_t(glow * t + ph * (1.0 - t));
+    }
+    else {
+      int relPos = i - (NUM_LEDS2 - PHASER_LEN2);
+      finalV = (brightness2 * sin8((relPos + phaseShift2 * 3) * 18)) / 255;
+    }
+
     leds2[i] = CRGB::White;
-    leds2[i].nscale8(phasShiftbrightness2);
+    leds2[i].nscale8(finalV);
   }
 
   // ----------------------

@@ -133,7 +133,7 @@ def handle_esps(udp_socket):
             print(f"❌ Unknown esp_id: {esp_id}")
             continue
 
-        print(f"📡 Data from ESP1: {ESP1.output_intensity1, ESP1.output_intensity2, ESP1.pulse_start}")
+        print(f"📡 Data from ESP2: {ESP1.output_intensity2, ESP1.output_intensity2, ESP2.pulse_start, ESP2.phaseVal1, ESP2.phaseVal2}")
 
 E1_0 = math.sqrt(max_brightness) * cmath.exp(1j * 0)
 E2_0 = 0
