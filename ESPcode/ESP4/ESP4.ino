@@ -47,7 +47,7 @@ float phaseShift2 = 0;
 float entanglement1 = 0;
 float entanglement2  = 0;
 int pulse1 = 0;
-uint8_t pulse2 = 0;
+uint8_t max_brightness = 0;
 uint8_t strobe1 = 0;
 uint8_t strobe2 = 0;
 
@@ -73,7 +73,21 @@ constexpr int FADE_LEN2   = 5;  // over how many LEDs to cross-fade
 int thisfade = 1;
 
 // Pulse parameters
-uint8_t pulse_boost = 255;
+constexpr int spread = 7;     // keep this (or use #define SPREAD 5)
+float alpha = 0.3;  // decay rate of exponential
+
+constexpr int SPREAD = 5;
+constexpr int LUT_SIZE = 2*SPREAD + 1;
+static float envelopeLUT[LUT_SIZE];
+
+static bool initLUT = false;
+void initEnvelopeLUT() {
+  if (initLUT) return;
+  initLUT = true;
+  for (int o = -SPREAD; o <= SPREAD; o++) {
+    envelopeLUT[o + SPREAD] = expf(-abs(o)*alpha);
+  }
+}
 
 // Strobe parameters
 bool strobeActive = false;
@@ -204,34 +218,38 @@ void updateLEDs() {
     leds4[i] += twinkle4[i];
   }
 
-  // ——— 5) Photon pulse across all strips ———
-  if (pulse1 > 400 && pulse1 < 1000) {
-    int cp = pulse1 - 400;
-    // strip1
-    if (cp < 200 && brightness1 != 0) {
-      int idx = 200 - cp;
-      leds1[idx] = CRGB::White; leds1[idx].nscale8(pulse_boost);
+  // PULSE //
+  int currentpixel = pulse1;
+  for (int offset = -SPREAD; offset <= SPREAD; offset++)
+    int pixel = currentpixel + offset;
+    int pix = pixel - 400;
+    uint8_t extra1 = uint8_t(map(brightness1, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+    uint8_t extra2 = uint8_t(map(brightness2, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+    uint8_t extra3 = uint8_t(map(brightness3_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+    uint8_t extra4 = uint8_t(map(brightness4_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+    
+    if (pixel > 400 && pixel < 1000 && pulse1 != -1) {
+      // strip1
+      if (pix < 200 && brightness1 != 0) {
+        int idx = 200 - cp;
+        leds1[idx] = CRGB::White; leds1[idx].nscale8(pulse_boost);
+      }
+      // strip2
+      if (cp >= 100 && cp < 200 && brightness2 != 0) {
+        int idx = 200 - cp;
+        leds2[idx] = CRGB::White; leds2[idx].nscale8(pulse_boost);
+      }
+      // strip3
+      if (cp >= 200 && cp < 600 && brightness3 != 0) {
+        int idx = cp - 200;
+        leds3[idx] = CRGB::White; leds3[idx].nscale8(pulse_boost);
+      }
+      // strip4
+      if (cp >= 200 && cp < 400 && brightness4 != 0) {
+        int idx = cp - 200;
+        leds4[idx] = CRGB::White; leds4[idx].nscale8(pulse_boost);
+      }
     }
-    // strip2
-    if (cp >= 100 && cp < 200 && brightness2 != 0) {
-      int idx = 200 - cp;
-      leds2[idx] = CRGB::White; leds2[idx].nscale8(pulse_boost);
-    }
-    // strip3
-    if (cp >= 200 && cp < 600 && brightness3 != 0) {
-      int idx = cp - 200;
-      leds3[idx] = CRGB::White; leds3[idx].nscale8(pulse_boost);
-    }
-    // strip4
-    if (cp >= 200 && cp < 400 && brightness4 != 0) {
-      int idx = cp - 200;
-      leds4[idx] = CRGB::White; leds4[idx].nscale8(pulse_boost);
-    }
-  }
-
-   if (pulse1 == -1){
-    leds3[399] = CRGB::White; leds3[300].nscale8(brightness3);
-  }
 
   if (strobeActive) {
     unsigned long dt = now - strobeStartMs;
@@ -265,6 +283,7 @@ void updateLEDs() {
 
 void setup() {
   Serial.begin(115200);
+  initEnvelopeLUT(); 
   
   // Set static IP and connect to Wi-Fi
   WiFi.config(staticIP, gateway, subnet);
@@ -367,7 +386,7 @@ void loop() {
     entanglement1  = values[6];
     entanglement2  = values[7];
     pulse1         = values[8];
-    pulse2         = values[9];
+    max_brightness = values[9];
     strobe1        = values[10];
     strobe2        = values[11];
 

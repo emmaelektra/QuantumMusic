@@ -43,7 +43,7 @@ float phaseShift2 = 0;
 float entanglement1 = 0;
 float entanglement2  = 0;
 int pulse1 = 0;
-float refreshrate = 0.002;
+uint8_t max_brightness = 0;
 uint8_t strobe1 = 0;
 uint8_t strobe2 = 0;
 
@@ -64,7 +64,21 @@ unsigned long lastUpdateRecieve = 0;
 int thisfade = 1;
 
 // Pulse parameters
-uint8_t pulse_bright = 255;
+constexpr int spread = 7;     // keep this (or use #define SPREAD 5)
+float alpha = 0.3;  // decay rate of exponential
+
+constexpr int SPREAD = 5;
+constexpr int LUT_SIZE = 2*SPREAD + 1;
+static float envelopeLUT[LUT_SIZE];
+
+static bool initLUT = false;
+void initEnvelopeLUT() {
+  if (initLUT) return;
+  initLUT = true;
+  for (int o = -SPREAD; o <= SPREAD; o++) {
+    envelopeLUT[o + SPREAD] = expf(-abs(o)*alpha);
+  }
+}
 
 WiFiClient laptopClient;
 WiFiUDP udp;
@@ -129,30 +143,53 @@ void updateLEDs() {
     leds4[i] += twinkleBuffer4[i];
   }
 
-  if (pulse1 < 600 && pulse1 != -1) {
-    int currentpixel = pulse1;
-    if (currentpixel < 200){
-      int pix = 200-(int)currentpixel;
-      if (brightness1 != 0)
-      {leds1[pix] = CRGB::White;
-      leds1[pix].nscale8(pulse_bright);
+  // PULSE //
+
+  int currentpixel = pulse1;
+  for (int offset = -SPREAD; offset <= SPREAD; offset++){
+    int pixel = currentpixel + offset;
+    uint8_t extra1 = uint8_t(map(brightness1, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+    uint8_t extra2 = uint8_t(map(brightness2, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+    if (pixel < 600 && pulse1 != -1) {
+      if (currentpixel < 200 && pulse1 != -1){
+        int idx = 200-pixel;
+        CRGB bump1 = CRGB::White;
+        CRGB bump2 = CRGB::White;
+        bump1.nscale8(extra1);
+        bump2.nscale8(extra2);
+        leds1[idx] += bump1;
+        leds2[idx] += bump2;  
       }
-      if (brightness2 != 0) 
-      {leds2[pix] = CRGB::White;
-      leds2[pix].nscale8(pulse_bright);
+      if (pixel >= 200 && pixel < 300 && pulse1 != -1){
+        static int brightness3_pulse = brightness3;
+        static int brightness4_pulse = brightness4;
+        if (pixel == 200){
+          brightness3_pulse = brightness3;
+          brightness4_pulse = brightness4;
+        }
+        uint8_t extra3 = uint8_t(map(brightness3_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+        uint8_t extra4 = uint8_t(map(brightness4_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+    
+        int idx = pixel - 200;
+        CRGB bump3 = CRGB::White;
+        CRGB bump4 = CRGB::White;
+        bump3.nscale8(extra3);
+        bump4.nscale8(extra4);
+        leds3[idx] += bump3;
+        leds4[idx] += bump4;
+        
       }
-    }
-    if (currentpixel >= 200 && currentpixel < 300 && brightness3 != 0){
-      int pix = (int)currentpixel-200;
-      leds3[pix] = CRGB::White;
-      leds3[pix].nscale8(pulse_bright);
-      leds4[pix] = CRGB::White;
-      leds4[pix].nscale8(pulse_bright);
-    }
-    if (currentpixel >= 300 && currentpixel < 600 && brightness4 != 0){
-      int pix = (int)currentpixel-200;
-      leds4[pix] = CRGB::White;
-      leds4[pix].nscale8(pulse_bright);
+      if (pixel >= 300 && pixel < 600 && pulse1 != -1){
+        static int brightness4_pulse = brightness4;
+        if (pixel == 300){
+          brightness4_pulse = brightness4;
+        }
+        uint8_t extra4 = uint8_t(map(brightness4_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+        int idx = pixel - 200;
+        CRGB bump4 = CRGB::White;
+        bump4.nscale8(extra4);
+        leds4[idx] += bump4;
+      }
     }
   }
   FastLED.show();
@@ -160,6 +197,7 @@ void updateLEDs() {
 
 void setup() {
   Serial.begin(115200);
+  initEnvelopeLUT(); 
   
   // Set static IP and connect to Wi-Fi
   WiFi.config(staticIP, gateway, subnet);
@@ -260,7 +298,7 @@ void loop() {
     entanglement1  = values[6];
     entanglement2  = values[7];
     pulse1         = values[8];
-    refreshrate    = values[9] * 100;
+    max_brightness = values[9];
     strobe1        = values[10];
     strobe2        = values[11];
     updateLEDs();

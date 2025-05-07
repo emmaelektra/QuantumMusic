@@ -187,6 +187,7 @@ def calculate_pulse(total_pulse_time, strobe_time):
     while True:
         # ——— 1) pulse sweep ———
         for px in range(num_pixels):
+            print(px)
             ESP1.pulse_start = px if px < 0.4 * num_pixels else -1
             ESP2.pulse_start = px if px < 0.6 * num_pixels else -1
             ESP3.pulse_start = px if 0.3 * num_pixels < px < 0.6 * num_pixels else -1
@@ -199,7 +200,12 @@ def calculate_pulse(total_pulse_time, strobe_time):
                 gui_socket.sendto(json.dumps({"sample": True}).encode(), (GUI_IP, GUI_PORT))
 
             time.sleep(time_per_pixel)
-
+        ESP1.pulse_start = -1
+        ESP2.pulse_start = -1
+        ESP3.pulse_start = -1
+        ESP4.pulse_start = -1
+        ESP5.pulse_start = -1
+        ESP6.pulse_start = -1
         # 2) wait (up to 500 ms) for the reply
         if not measured_event.wait(0.3):
             print("⚠️ measurement timeout")

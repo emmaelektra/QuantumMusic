@@ -43,7 +43,7 @@ float phaseShift2 = 0;
 float entanglement1 = 0;
 float entanglement2  = 0;
 int pulse1 = 0;
-uint8_t pulse2 = 0;
+uint8_t max_brightness = 0;
 uint8_t strobe1 = 0;
 uint8_t strobe2 = 0;
 
@@ -69,7 +69,21 @@ int thisfade = 1;
 //float sparkleBoost = map(entanglement1, 1, 15, 130, 255) / 100.0;  // range: 1.3 to 2.55 (alternative mapping)
 
 // Pulse parameters
-uint8_t pulse_bright = 255;
+constexpr int spread = 7;     // keep this (or use #define SPREAD 5)
+float alpha = 0.3;  // decay rate of exponential
+
+constexpr int SPREAD = 5;
+constexpr int LUT_SIZE = 2*SPREAD + 1;
+static float envelopeLUT[LUT_SIZE];
+
+static bool initLUT = false;
+void initEnvelopeLUT() {
+  if (initLUT) return;
+  initLUT = true;
+  for (int o = -SPREAD; o <= SPREAD; o++) {
+    envelopeLUT[o + SPREAD] = expf(-abs(o)*alpha);
+  }
+}
 
 WiFiClient laptopClient;
 WiFiUDP udp;
@@ -150,23 +164,34 @@ void updateLEDs() {
     leds4[i] = glowColor;
     leds4[i] += twinkleBuffer4[i];
   }
-
-  if (pulse1 > 300 && pulse1 < 600 && pulse1 != -1) {
-    int currentpixel = pulse1 - 300;
-    if (currentpixel < 100 && brightness2 != 0){
-      leds2[100-currentpixel] = CRGB::White;
-      leds2[100-currentpixel].nscale8(pulse_bright);
-    }
-    if (currentpixel >= 100 && currentpixel < 200 && brightness3 != 0){
-      leds3[currentpixel-100] = CRGB::White;
-      leds3[currentpixel-100].nscale8(pulse_bright);
-    }
-    if (currentpixel >= 100 && currentpixel < 300 && brightness4 != 0){
-      leds4[currentpixel-100] = CRGB::White;
-      leds4[currentpixel-100].nscale8(pulse_bright);
+  // PULSE //
+  int currentpixel = pulse1 - 300;
+  for (int offset = -SPREAD; offset <= SPREAD; offset++){
+    int pixel = currentpixel + offset;
+    uint8_t extra2 = uint8_t(map(brightness2, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+    uint8_t extra3 = uint8_t(map(brightness3, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+    uint8_t extra4 = uint8_t(map(brightness4, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+   
+      if (pulse1 > 300 && pulse1 < 600 && pulse1 != -1) {
+        if (currentpixel < 100 && brightness2 != 0){
+          int idx = 100 - pixel;
+          CRGB bump2 = CRGB::White;
+          bump2.nscale8(extra2);
+          leds2[idx] += bump2;
+        }
+        if (currentpixel >= 100 && currentpixel < 200 && brightness3 != 0){
+          int idx = pixel - 100;
+          CRGB bump3 = CRGB::White;
+          leds3[idx] += bump3;
+        }
+        if (currentpixel >= 100 && currentpixel < 300 && brightness4 != 0){
+          int idx = pixel - 100;
+          CRGB bump4 = CRGB::White;
+          bump4.nscale8(extra4);
+          leds4[idx] += bump4;
+        }
     }
   }
-
   FastLED.show();
 }
 
@@ -174,6 +199,7 @@ void updateLEDs() {
 
 void setup() {
   Serial.begin(115200);
+  initEnvelopeLUT(); 
   
   // Set static IP and connect to Wi-Fi
   WiFi.config(staticIP, gateway, subnet);
@@ -274,7 +300,7 @@ void loop() {
     entanglement1  = values[6];
     entanglement2  = values[7];
     pulse1         = values[8];
-    pulse2         = values[9];
+    max_brightness = values[9];
     strobe1        = values[10];
     strobe2        = values[11];
 

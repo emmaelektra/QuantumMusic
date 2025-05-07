@@ -145,13 +145,10 @@ void updateLEDs() {
   int currentpixel = pulse1;
   for (int offset = -SPREAD; offset <= SPREAD; offset++) {
     int pixel = currentpixel + offset;
-    
     uint8_t extra1 = uint8_t(map(brightness1, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
     uint8_t extra2 = uint8_t(map(brightness2, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-    uint8_t extra3 = uint8_t(map(brightness3, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-    uint8_t extra4 = uint8_t(map(brightness4, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
     if (pixel >= 0 && pixel < 200 && pulse1 != -1) {
-      int idx = (NUM_LEDS1 - 1) - pixel;  // = 199 - pixel
+      int idx = 200 - pixel;  // = 199 - pixel
       CRGB bump1 = CRGB::White;
       CRGB bump2 = CRGB::White;
       bump1.nscale8(extra1);
@@ -160,6 +157,14 @@ void updateLEDs() {
       leds2[idx] += bump2;
     }
     if (pixel >= 200 && pixel < 400 && pulse1 != -1) {
+      static int brightness3_pulse = brightness3;
+      static int brightness4_pulse = brightness4;
+      if (pixel == 200){
+        brightness3_pulse = brightness3;
+        brightness4_pulse = brightness4;
+      }
+      uint8_t extra3 = uint8_t(map(brightness3_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+      uint8_t extra4 = uint8_t(map(brightness4_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
       int idx2 = pixel - 200;
       CRGB bump3 = CRGB::White;
       CRGB bump4 = CRGB::White;
