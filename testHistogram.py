@@ -81,10 +81,19 @@ dragging_slider_bs = -1
 dragging_rotation_slider = -1
 
 # --------------------- Helper Functions ---------------------
-def send_histogram_data(histogram_data, measured_state):
+def send_histogram_data(histogram_data, current_channel_probs, measured_state):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server_address = ("127.0.0.1", 9999)
-    data = {"histogram_data": histogram_data, "measured_state": measured_state}
+
+    probs_list = current_channel_probs.tolist()
+
+    data = {
+        "histogram_data": histogram_data,
+        "current_channel_probs": probs_list,
+        "measured_state": measured_state
+    }
+
+    # now this will succeed
     json_data = json.dumps(data)
     client_socket.sendto(json_data.encode("utf-8"), server_address)
 
@@ -124,7 +133,7 @@ def update_plots():
         flash_alpha = 255
         counts = [state_counts[state] for state in output_states]
         current_channel_probs = channel_probs
-        send_histogram_data(histogram_data=counts, measured_state=measured_state)
+        send_histogram_data(histogram_data=counts, current_channel_probs = current_channel_probs, measured_state=measured_state)
 
         global random_noise_value
         random_noise_value = np.random.rand()  # Random value between 0 and 1
