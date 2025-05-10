@@ -142,6 +142,36 @@ void updateLEDs() {
     leds4[i] += twinkleBuffer4[i];
   }
   
+  // Static end‐cap phaser on strip 3
+  constexpr int PHASER_LEN3 = 40;   // how many LEDs get the wave
+  constexpr int FADE_LEN3   = 5;    // how many LEDs to cross-fade
+
+  for (int i = 0; i < NUM_LEDS3; i++) {
+    uint8_t glow = brightness3;
+    uint8_t finalV;
+
+    if (i < NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3)) {
+      // 1) Far from the end → solid glow
+      finalV = glow;
+
+    } else if (i < NUM_LEDS3 - PHASER_LEN3) {
+      // 2) Fade region
+      float t = float(i - (NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3))) / FADE_LEN3;
+      int relPos = i - (NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3));
+      // static sine lobe: one full wave over PHASER_LEN3 LEDs
+      int ph = (brightness3 * sin8((relPos + 0) * 18)) / 255;
+      finalV = uint8_t(glow * t + ph * (1.0f - t));
+
+    } else {
+      // 3) Full static phaser region
+      int relPos = i - (NUM_LEDS3 - PHASER_LEN3);
+      finalV = (brightness3 * sin8((relPos + 0) * 18)) / 255;
+    }
+
+    leds3[i] = CRGB::White;
+    leds3[i].nscale8(finalV);
+  }
+
   int currentpixel = pulse1;
   for (int offset = -SPREAD; offset <= SPREAD; offset++) {
     int pixel = currentpixel + offset;

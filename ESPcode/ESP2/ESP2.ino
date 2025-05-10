@@ -2,6 +2,7 @@
 #include <ArduinoJson.h>
 #include <FastLED.h>
 #include <ArduinoOTA.h>
+#include <ESPmDNS.h>
 
 #define SSID "BosonSamplerWiFi"
 #define PASSWORD "QuantumTech2025"
@@ -92,6 +93,7 @@ void updateLEDs() {
     leds2[i] = CRGB::White;
     leds2[i].nscale8(brightness2);
   }
+  /*
   // Entanglement on strips 3 and 4
   int sparkleBoost = map(entanglement1, 0, 15, 0, 255);
   fadeToBlackBy(leds3, NUM_LEDS3, thisfade);
@@ -120,14 +122,6 @@ void updateLEDs() {
     }
   }
 
-  // Blend twinkleBuffer with steady white background
-  for (int i = 0; i < NUM_LEDS3; i++) {
-    CRGB glowColor = CRGB::White;
-    glowColor.nscale8(brightness3);
-    leds3[i] = glowColor;  
-    leds3[i] += twinkleBuffer3[i];  
-  }
-
     for (int i = 0; i < maxSparkles4; i++) {
     if (random8() < twinkleChance) {
       int pos = random16(NUM_LEDS4);
@@ -135,13 +129,52 @@ void updateLEDs() {
       twinkleBuffer4[pos].nscale8(sparkleBoost);  // full entanglement = full sparkle
     }
   }
-
+  */
+  // BACHGROUND BRIGHTNESS //
+  /*
+  for (int i = 0; i < NUM_LEDS3; i++) {
+    CRGB glowColor = CRGB::White;
+    glowColor.nscale8(brightness3);
+    leds3[i] = glowColor;  
+  }
+  */
+  
   for (int i = 0; i < NUM_LEDS4; i++) {
     CRGB glowColor = CRGB::White;
     glowColor.nscale8(brightness4);
     leds4[i] = glowColor;
-    leds4[i] += twinkleBuffer4[i];
   }
+
+  // Static end‐cap phaser on strip 3
+  constexpr int PHASER_LEN3 = 40;   // how many LEDs get the wave
+  constexpr int FADE_LEN3   = 5;    // how many LEDs to cross-fade
+
+  for (int i = 0; i < NUM_LEDS3; i++) {
+    uint8_t glow = brightness3;
+    uint8_t finalV;
+
+    if (i < NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3)) {
+      // 1) Far from the end → solid glow
+      finalV = glow;
+
+    } else if (i < NUM_LEDS3 - PHASER_LEN3) {
+      // 2) Fade region
+      float t = float(i - (NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3))) / FADE_LEN3;
+      int relPos = i - (NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3));
+      // static sine lobe: one full wave over PHASER_LEN3 LEDs
+      int ph = (brightness3 * sin8((relPos + 0) * 18)) / 255;
+      finalV = uint8_t(glow * t + ph * (1.0f - t));
+
+    } else {
+      // 3) Full static phaser region
+      int relPos = i - (NUM_LEDS3 - PHASER_LEN3);
+      finalV = (brightness3 * sin8((relPos + 0) * 18)) / 255;
+    }
+
+    leds3[i] = CRGB::White;
+    leds3[i].nscale8(finalV);
+  }
+
 
   // PULSE //
 

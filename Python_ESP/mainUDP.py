@@ -133,7 +133,7 @@ def handle_esps(udp_socket):
             print(f"❌ Unknown esp_id: {esp_id}")
             continue
 
-        print(f"📡 Data from ESP2: {ESP1.output_intensity2, ESP1.output_intensity2, ESP2.pulse_start, ESP2.phaseVal1, ESP2.phaseVal2}")
+        print(f"📡 Data from ESP4: {ESP4.pulse_start}")
 
 E1_0 = math.sqrt(max_brightness) * cmath.exp(1j * 0)
 E2_0 = 0
@@ -190,10 +190,10 @@ def calculate_pulse(total_pulse_time, strobe_time):
             print(px)
             ESP1.pulse_start = px if px < 0.4 * num_pixels else -1
             ESP2.pulse_start = px if px < 0.6 * num_pixels else -1
-            ESP3.pulse_start = px if 0.3 * num_pixels < px < 0.6 * num_pixels else -1
-            ESP4.pulse_start = px if 0.4 * num_pixels < px < num_pixels else -1
+            ESP3.pulse_start = px if 0.1 * num_pixels < px < 0.6 * num_pixels else -1
+            ESP4.pulse_start = px if 0.1 * num_pixels < px < num_pixels else -1
             ESP5.pulse_start = px if 0.6 * num_pixels < px < num_pixels else -1
-            ESP6.pulse_start = px if 0.8 * num_pixels < px < num_pixels else -1
+            ESP6.pulse_start = px if 0.7 * num_pixels < px < num_pixels else -1
             if px == 970:
                 # 1) tell the GUI to sample
                 measured_event.clear()

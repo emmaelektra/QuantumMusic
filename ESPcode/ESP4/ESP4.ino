@@ -73,7 +73,6 @@ constexpr int FADE_LEN2   = 5;  // over how many LEDs to cross-fade
 int thisfade = 1;
 
 // Pulse parameters
-constexpr int spread = 7;     // keep this (or use #define SPREAD 5)
 float alpha = 0.3;  // decay rate of exponential
 
 constexpr int SPREAD = 5;
@@ -176,7 +175,15 @@ void updateLEDs() {
     leds2[i] = CRGB::White;
     leds2[i].nscale8(finalV);
   }
-
+  for (int i = 0; i < NUM_LEDS3; i++) {
+    CRGB base = CRGB::White; base.nscale8(brightness3);
+    leds3[i] = base;
+  }
+  for (int i = 0; i < NUM_LEDS4; i++) {
+    CRGB base = CRGB::White; base.nscale8(brightness4);
+    leds4[i] = base;
+  }
+  /*
   // ——— 4) Entanglement/twinkle on strip 3 & 4 ———
   int sparkleBoost = map(entanglement1, 0, 20, 0, 255);
 
@@ -193,11 +200,7 @@ void updateLEDs() {
       twinkle3[p].nscale8(sparkleBoost);
     }
   }
-  for (int i = 0; i < NUM_LEDS3; i++) {
-    CRGB base = CRGB::White; base.nscale8(brightness3);
-    leds3[i] = base;
-    leds3[i] += twinkle3[i];
-  }
+  
 
   // strip 4 base fade
   fadeToBlackBy(leds4, NUM_LEDS4, thisfade);
@@ -212,44 +215,62 @@ void updateLEDs() {
       twinkle4[p].nscale8(sparkleBoost);
     }
   }
-  for (int i = 0; i < NUM_LEDS4; i++) {
-    CRGB base = CRGB::White; base.nscale8(brightness4);
-    leds4[i] = base;
-    leds4[i] += twinkle4[i];
-  }
-
+  */
   // PULSE //
   int currentpixel = pulse1;
-  for (int offset = -SPREAD; offset <= SPREAD; offset++)
+  static int brightness1_pulse = brightness1;
+  static int brightness2_pulse = brightness2;
+  static int brightness3_pulse = brightness3;
+  static int brightness4_pulse = brightness4;
+  for (int offset = -SPREAD; offset <= SPREAD; offset++){
     int pixel = currentpixel + offset;
+    if (currentpixel == 200){
+        brightness1_pulse = brightness1;
+      }
+    if (currentpixel == 400){
+        brightness2_pulse = brightness2;
+    }
     int pix = pixel - 400;
-    uint8_t extra1 = uint8_t(map(brightness1, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-    uint8_t extra2 = uint8_t(map(brightness2, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-    uint8_t extra3 = uint8_t(map(brightness3_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-    uint8_t extra4 = uint8_t(map(brightness4_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-    
     if (pixel > 400 && pixel < 1000 && pulse1 != -1) {
+      if (currentpixel == 600){
+        brightness3_pulse = brightness3;
+        brightness4_pulse = brightness4;
+      }
       // strip1
-      if (pix < 200 && brightness1 != 0) {
-        int idx = 200 - cp;
-        leds1[idx] = CRGB::White; leds1[idx].nscale8(pulse_boost);
+      if (pix < 200) {
+        int idx = 200 - pix;
+        uint8_t extra1 = uint8_t(map(brightness1_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+        CRGB bump1 = CRGB::White;
+        bump1.nscale8(extra1);
+        leds1[idx] += bump1;
       }
       // strip2
-      if (cp >= 100 && cp < 200 && brightness2 != 0) {
-        int idx = 200 - cp;
-        leds2[idx] = CRGB::White; leds2[idx].nscale8(pulse_boost);
+      if (pix >= 100 && pix < 200) {
+        int idx = 199 - pix;
+        uint8_t extra2 = uint8_t(map(brightness2_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+    
+        CRGB bump2 = CRGB::White;
+        bump2.nscale8(extra2);
+        leds2[idx] += bump2;  
       }
       // strip3
-      if (cp >= 200 && cp < 600 && brightness3 != 0) {
-        int idx = cp - 200;
-        leds3[idx] = CRGB::White; leds3[idx].nscale8(pulse_boost);
+      if (pix >= 200 && pix < 600) {
+        int idx = pix - 200;
+        uint8_t extra3 = uint8_t(map(brightness3_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+        CRGB bump3 = CRGB::White;
+        bump3.nscale8(extra3);
+        leds3[idx] += bump3;
       }
       // strip4
-      if (cp >= 200 && cp < 400 && brightness4 != 0) {
-        int idx = cp - 200;
-        leds4[idx] = CRGB::White; leds4[idx].nscale8(pulse_boost);
+      if (pix >= 200 && pix < 400) {
+        int idx = pix - 200;
+        uint8_t extra4 = uint8_t(map(brightness4_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+        CRGB bump4 = CRGB::White;
+        bump4.nscale8(extra4);
+        leds4[idx] += bump4;
       }
     }
+  }
 
   if (strobeActive) {
     unsigned long dt = now - strobeStartMs;
@@ -264,7 +285,9 @@ void updateLEDs() {
         if (idx < 0) break;
 
         // shape: base (off=0) bright, tip (off=glowLen-1) dark
-        float falloff = 1.0f - float(off) / float(glowLen - 1);
+        float t      = float(off) / float(glowLen - 1);  
+        float gamma  = 1.0f;         // <1 → shallower drop, >1 → sharper drop
+        float falloff = powf(1.0f - t, gamma);
         float intensity = amp * falloff;      // modulate by amp
 
         uint8_t b = uint8_t(intensity * 255);
