@@ -31,7 +31,7 @@ atexit.register(cleanup)
 
 PORT = 80
 
-GUI_IP = "127.0.0.1"  # localhost
+GUI_IP = "192.168.4.15"  # localhost
 GUI_PORT = 12345      # port where GUI listens
 gui_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -133,7 +133,7 @@ def handle_esps(udp_socket):
             print(f"❌ Unknown esp_id: {esp_id}")
             continue
 
-        print(f"📡 Data from ESP4: {ESP4.pulse_start}")
+        #print(f"📡 Data from ESP4: {ESP4.pulse_start}")
 
 E1_0 = math.sqrt(max_brightness) * cmath.exp(1j * 0)
 E2_0 = 0
@@ -187,7 +187,7 @@ def calculate_pulse(total_pulse_time, strobe_time):
     while True:
         # ——— 1) pulse sweep ———
         for px in range(num_pixels):
-            print(px)
+            #print(px)
             ESP1.pulse_start = px if px < 0.4 * num_pixels else -1
             ESP2.pulse_start = px if px < 0.6 * num_pixels else -1
             ESP3.pulse_start = px if 0.1 * num_pixels < px < 0.6 * num_pixels else -1
@@ -211,7 +211,7 @@ def calculate_pulse(total_pulse_time, strobe_time):
             print("⚠️ measurement timeout")
             # you can decide here to skip or default to zeros
         # now latest_measured_state is guaranteed fresh
-
+        print(latest_measured_state)
         # ——— 2) latch & print strobes ———
         if latest_measured_state and len(latest_measured_state) >= 4:
             a, b, c, d = latest_measured_state[:4]
