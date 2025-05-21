@@ -33,7 +33,7 @@ font = pygame.font.Font(minion_path, 36)
 # --------------------- Experiment Setup ---------------------
 num_channels = 4
 num_photons = 2
-input_state = [1, 0, 1, 0]
+input_state = [1, 1, 0, 0]
 exp_setup = ExperimentalSetupGUIReal(num_output_channels=num_channels, num_photons=num_photons)
 
 random_noise_value = 0
