@@ -11,7 +11,7 @@ import json
 import matplotlib.font_manager as fm
 
 # Path to your Minion Pro font file
-minion_path = '/Users/emmasokoll/Library/Fonts/MinionPro-Regular.otf'
+minion_path = "C:/Windows/Fonts/segoeui.ttf"
 
 # Add the font to Matplotlib’s font manager
 fm.fontManager.addfont(minion_path)
@@ -40,13 +40,13 @@ white = (255, 255, 255)
 black = (0, 0, 0)
 gray = (200, 200, 200)
 #font = pygame.font.Font(None, 36)
-font = pygame.font.Font('/Users/emmasokoll/Library/Fonts/MinionPro-Regular.otf', 36)
+font = pygame.font.Font('C:/Windows/Fonts/segoeui.ttf', 36)
 
 
 # Initialize your experimental setup with the number of channels (m)
 num_channels = 4  # Adjust as needed
-num_photons = 3
-input_state = [1,1,1,0]
+num_photons = 2
+input_state = [1,0,1,0]
 exp_setup = ExperimentalSetupGUIReal(num_output_channels=num_channels, num_photons=num_photons)
 
 # Initial slider values for gate parameters
