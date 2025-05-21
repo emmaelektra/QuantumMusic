@@ -223,10 +223,7 @@ def calculate_pulse(total_pulse_time, strobe_time):
     BUSY_THRESHOLD = 0.002
     num_pixels = 1000
     time_per_pixel = total_pulse_time / num_pixels
-    active_pulses = []
-
-    next_spawn = time.perf_counter()
-    spawn_interval = random.uniform(0,10)
+  
     while True:
         start = time.perf_counter()
 
