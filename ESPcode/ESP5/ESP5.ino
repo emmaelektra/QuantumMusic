@@ -36,8 +36,8 @@ float phaseShift1 = 0;
 float phaseShift2 = 0;
 float entanglement1 = 0;
 float entanglement2  = 0;
-uint8_t pulse1 = 0;
-uint8_t pulse2 = 0;
+int pulse1 = 0;
+uint8_t max_brightness = 0;
 uint8_t strobe1 = 0;
 uint8_t strobe2 = 0;
 
@@ -62,12 +62,48 @@ unsigned long lastUpdateTimeLED = 0;
 //Entanglement parameters
 int thisfade = 1;
 
+// Pulse parameters
+float alpha = 0.3;  // decay rate of exponential
+
+constexpr int SPREAD = 5;
+constexpr int LUT_SIZE = 2*SPREAD + 1;
+static float envelopeLUT[LUT_SIZE];
+
+static bool initLUT = false;
+void initEnvelopeLUT() {
+  if (initLUT) return;
+  initLUT = true;
+  for (int o = -SPREAD; o <= SPREAD; o++) {
+    envelopeLUT[o + SPREAD] = expf(-abs(o)*alpha);
+  }
+}
+
+// Strobe parameters
+bool strobeActive = false;
+unsigned long strobeStartMs = 0;
+const unsigned long strobeTimeMs = 2000; // 2 s
+bool strobeConsumed = false;
+
 WiFiClient laptopClient;
 WiFiUDP udp;
 
 void updateLEDs() {
+    if (!strobe2) {
+    strobeConsumed = false;
+  }
+
+  unsigned long now = millis();
+
+  // ——— 1) Detect strobe start (rising edge) ———
+  if (strobe2 && !strobeActive && !strobeConsumed) {
+  // only trigger once
+  strobeActive   = true;
+  strobeStartMs  = now;
+  strobeConsumed = true;
+  }
+  /*
   // Entanglement on strips 3 and 4
-  int sparkleBoost = map(entanglement1, 0, 15, 0, 255);
+  int sparkleBoost = map(entanglement1, 0, 20, 0, 255);
   fadeToBlackBy(leds3, NUM_LEDS3, thisfade);
   fadeToBlackBy(leds4, NUM_LEDS4, thisfade);
 
@@ -82,9 +118,9 @@ void updateLEDs() {
   fill_solid(twinkleBuffer4, NUM_LEDS4, CRGB::Black);
 
   // Twinkle logic based on entanglement
-  int maxSparkles3 = map(entanglement1, 1, 15, NUM_LEDS3 / 1.5, NUM_LEDS3 / 30);
-  int maxSparkles4 = map(entanglement1, 1, 15, NUM_LEDS4 / 1.5, NUM_LEDS4 / 30);
-  int twinkleChance = map(entanglement1, 1, 15, 1, 20);
+  int maxSparkles3 = map(entanglement1, 1, 20, NUM_LEDS3 / 1.5, NUM_LEDS3 / 30);
+  int maxSparkles4 = map(entanglement1, 1, 20, NUM_LEDS4 / 1.5, NUM_LEDS4 / 30);
+  int twinkleChance = map(entanglement1, 1, 20, 1, 20);
 
   for (int i = 0; i < maxSparkles3; i++) {
     if (random8() < twinkleChance) {
@@ -95,12 +131,7 @@ void updateLEDs() {
   }
 
   // Blend twinkleBuffer with steady white background
-  for (int i = 0; i < NUM_LEDS3; i++) {
-    CRGB glowColor = CRGB::White;
-    glowColor.nscale8(brightness3);
-
-    leds3[i] = blend(glowColor, twinkleBuffer3[i], fadeAmount * 255);
-  }
+  
 
     for (int i = 0; i < maxSparkles4; i++) {
     if (random8() < twinkleChance) {
@@ -109,17 +140,81 @@ void updateLEDs() {
       twinkleBuffer4[pos].nscale8(sparkleBoost);  // full entanglement = full sparkle
     }
   }
+  */
 
+  // BACKGROUND BRIGHTNESS //
+  for (int i = 0; i < NUM_LEDS3; i++) {
+    CRGB glowColor = CRGB::White;
+    glowColor.nscale8(brightness3);
+    leds3[i] = glowColor;  
+  }
   for (int i = 0; i < NUM_LEDS4; i++) {
     CRGB glowColor = CRGB::White;
     glowColor.nscale8(brightness4);
-    leds4[i] = blend(glowColor, twinkleBuffer4[i], fadeAmount * 255);
+    leds4[i] = glowColor;
+  }
+
+  // PULSE //
+  int currentpixel = pulse1 - 600;
+  static int brightness3_pulse = brightness3;
+  static int brightness4_pulse = brightness4;
+  for (int offset = -SPREAD; offset <= SPREAD; offset++) {
+    int pixel = currentpixel + offset;
+    if (pulse1 > 600 && pulse1 < 1000 && pulse1 != -1) {
+      if (pixel == 0){
+        brightness3_pulse = brightness3;
+        brightness4_pulse = brightness4;
+      }
+      if (pixel >= 0 && pixel < 200) {
+        int idx = pixel;
+        uint8_t extra3 = uint8_t(map(brightness3_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+        CRGB bump3 = CRGB::White;
+        bump3.nscale8(extra3);
+        leds3[idx] += bump3;
+      }
+      if (pixel >= 0 && pixel < 400) {
+        int idx = pixel;
+        uint8_t extra4 = uint8_t(map(brightness4_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+        CRGB bump4 = CRGB::White;
+        bump4.nscale8(extra4);
+        leds4[idx] += bump4;
+      }
+    }
+  }
+
+  // STROBE //
+  if (strobeActive) {
+    unsigned long dt = now - strobeStartMs;
+    if (dt < strobeTimeMs) {
+      // overall amplitude: 0→1→0 over strobeTimeMs
+      float phase = float(dt) / float(strobeTimeMs);
+      float amp   = sinf(phase * M_PI);      // 0→1→0
+
+      const int glowLen = 70;                // number of LEDs lighting up
+      for (int off = 0; off < glowLen; off++) {
+        int idx = NUM_LEDS4 - 1 - off;        // tip inward
+        if (idx < 0) break;
+
+        // shape: base (off=0) bright, tip (off=glowLen-1) dark
+        float t      = float(off) / float(glowLen - 1);  
+        float gamma  = 1.0f;         // <1 → shallower drop, >1 → sharper drop
+        float falloff = powf(1.0f - t, gamma);
+        float intensity = amp * falloff;      // modulate by amp
+
+        uint8_t b = uint8_t(intensity * 255);
+        CRGB glow = CRGB::White; glow.nscale8(b);
+        leds4[idx] += glow;
+      }
+    } else {
+      strobeActive = false;  // end of strobe window
+    }
   }
   FastLED.show();
 }
 
 void setup() {
   Serial.begin(115200);
+  initEnvelopeLUT(); 
   
   // Set static IP and connect to Wi-Fi
   WiFi.config(staticIP, gateway, subnet);
@@ -228,16 +323,16 @@ void loop() {
     }
 
     // Now assign variables from csv
-    brightness1    = values[0]/2;
-    brightness2    = values[1]/2;
-    brightness3    = values[2]/2;
-    brightness4    = values[3]/2;
+    brightness1    = values[0];
+    brightness2    = values[1];
+    brightness3    = values[2];
+    brightness4    = values[3];
     phaseShift1    = values[4];
     phaseShift2    = values[5];
     entanglement1  = values[6];
     entanglement2  = values[7];
     pulse1         = values[8];
-    pulse2         = values[9];
+    max_brightness = values[9];
     strobe1        = values[10];
     strobe2        = values[11];
 

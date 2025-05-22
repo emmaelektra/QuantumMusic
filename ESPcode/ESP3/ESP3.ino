@@ -42,8 +42,8 @@ float phaseShift1 = 0;
 float phaseShift2 = 0;
 float entanglement1 = 0;
 float entanglement2  = 0;
-uint8_t pulse1 = 0;
-uint8_t pulse2 = 0;
+int pulse1 = 0;
+uint8_t max_brightness = 0;
 uint8_t strobe1 = 0;
 uint8_t strobe2 = 0;
 
@@ -59,10 +59,31 @@ unsigned long lastUpdateTimeOTA = 0;
 unsigned long lastUpdateTimePOT = 10;
 unsigned long lastUpdateTimeLED = 0;  
 
+// Phase shift parameters
+constexpr int PHASER_LEN2 = 40;
+constexpr int FADE_LEN2   = 5;  // over how many LEDs to cross-fade  
+
 //Entanglement parameters
 int thisfade = 1;
 //float sparkleBoost = 1.0 + pow(entanglement1 / 15.0, 1.5) * 6.0;  // 1.0 → 3.0 range
 //float sparkleBoost = map(entanglement1, 1, 15, 130, 255) / 100.0;  // range: 1.3 to 2.55 (alternative mapping)
+
+// Pulse parameters
+constexpr int spread = 7;     // keep this (or use #define SPREAD 5)
+float alpha = 0.3;  // decay rate of exponential
+
+constexpr int SPREAD = 5;
+constexpr int LUT_SIZE = 2*SPREAD + 1;
+static float envelopeLUT[LUT_SIZE];
+
+static bool initLUT = false;
+void initEnvelopeLUT() {
+  if (initLUT) return;
+  initLUT = true;
+  for (int o = -SPREAD; o <= SPREAD; o++) {
+    envelopeLUT[o + SPREAD] = expf(-abs(o)*alpha);
+  }
+}
 
 WiFiClient laptopClient;
 WiFiUDP udp;
@@ -71,15 +92,30 @@ void updateLEDs() {
   int sparkleBoost = map(entanglement1, 0, 15, 0, 255);
   // Phase shifted sine pattern for leds2
   for (int i = 0; i < NUM_LEDS2; i++) {
-    int phasShiftbrightness2 = brightness2 * (sin8((i + phaseShift2) * 15)) / 255;
+    uint8_t glow = brightness2, finalV;
+
+    if (i < NUM_LEDS2 - (PHASER_LEN2 + FADE_LEN2)) {
+      finalV = glow;
+    }
+    else if (i < NUM_LEDS2 - PHASER_LEN2) {
+      float t = float(i - (NUM_LEDS2 - (PHASER_LEN2 + FADE_LEN2))) / FADE_LEN2;
+      int relPos = i - (NUM_LEDS2 - (PHASER_LEN2 + FADE_LEN2));
+      int ph = (brightness2 * sin8((relPos + phaseShift2 * 3) * 18)) / 255;
+      finalV = uint8_t(glow * t + ph * (1.0 - t));
+    }
+    else {
+      int relPos = i - (NUM_LEDS2 - PHASER_LEN2);
+      finalV = (brightness2 * sin8((relPos + phaseShift2 * 3) * 18)) / 255;
+    }
+
     leds2[i] = CRGB::White;
-    leds2[i].nscale8(phasShiftbrightness2);
+    leds2[i].nscale8(finalV);
   }
 
   // ----------------------
   // Twinkling with blending
   // ----------------------
-
+  /*
   fadeToBlackBy(leds3, NUM_LEDS3, thisfade);
   fadeToBlackBy(leds4, NUM_LEDS4, thisfade);
 
@@ -94,9 +130,9 @@ void updateLEDs() {
   fill_solid(twinkleBuffer4, NUM_LEDS4, CRGB::Black);
 
   // Twinkle logic based on entanglement
-  int maxSparkles3 = map(entanglement1, 1, 15, NUM_LEDS3 / 1.5, NUM_LEDS3 / 30);
-  int maxSparkles4 = map(entanglement1, 1, 15, NUM_LEDS4 / 1.5, NUM_LEDS4 / 30);
-  int twinkleChance = map(entanglement1, 1, 15, 1, 20);
+  int maxSparkles3 = map(entanglement1, 1, 20, NUM_LEDS3 / 1.5, NUM_LEDS3 / 30);
+  int maxSparkles4 = map(entanglement1, 1, 20, NUM_LEDS4 / 1.5, NUM_LEDS4 / 30);
+  int twinkleChance = map(entanglement1, 1, 20, 1, 20);
 
   for (int i = 0; i < maxSparkles3; i++) {
     if (random8() < twinkleChance) {
@@ -106,14 +142,6 @@ void updateLEDs() {
     }
   }
 
-  // Blend twinkleBuffer with steady white background
-  for (int i = 0; i < NUM_LEDS3; i++) {
-    CRGB glowColor = CRGB::White;
-    glowColor.nscale8(brightness3);
-
-    leds3[i] = blend(glowColor, twinkleBuffer3[i], fadeAmount * 255);
-  }
-
     for (int i = 0; i < maxSparkles4; i++) {
     if (random8() < twinkleChance) {
       int pos = random16(NUM_LEDS4);
@@ -121,13 +149,82 @@ void updateLEDs() {
       twinkleBuffer4[pos].nscale8(sparkleBoost);  // full entanglement = full sparkle
     }
   }
+  */
+  // Blend twinkleBuffer with steady white background
+   // Static end‐cap phaser on strip 3
+  constexpr int PHASER_LEN3 = 40;   // how many LEDs get the wave
+  constexpr int FADE_LEN3   = 5;    // how many LEDs to cross-fade
+
+  for (int i = 0; i < NUM_LEDS3; i++) {
+    uint8_t glow = brightness3;
+    uint8_t finalV;
+
+    if (i < NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3)) {
+      // 1) Far from the end → solid glow
+      finalV = glow;
+
+    } else if (i < NUM_LEDS3 - PHASER_LEN3) {
+      // 2) Fade region
+      float t = float(i - (NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3))) / FADE_LEN3;
+      int relPos = i - (NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3));
+      // static sine lobe: one full wave over PHASER_LEN3 LEDs
+      int ph = (brightness3 * sin8((relPos + 0) * 18)) / 255;
+      finalV = uint8_t(glow * t + ph * (1.0f - t));
+
+    } else {
+      // 3) Full static phaser region
+      int relPos = i - (NUM_LEDS3 - PHASER_LEN3);
+      finalV = (brightness3 * sin8((relPos + 0) * 18)) / 255;
+    }
+
+    leds3[i] = CRGB::White;
+    leds3[i].nscale8(finalV);
+  }
 
   for (int i = 0; i < NUM_LEDS4; i++) {
     CRGB glowColor = CRGB::White;
     glowColor.nscale8(brightness4);
-    leds4[i] = blend(glowColor, twinkleBuffer4[i], fadeAmount * 255);
+    leds4[i] = glowColor;
   }
-
+  // PULSE //
+  int currentpixel = pulse1 - 300;
+  static int brightness1_pulse = brightness1;
+  static int brightness2_pulse = brightness2;
+  static int brightness3_pulse = brightness3;
+  static int brightness4_pulse = brightness4;
+  for (int offset = -SPREAD; offset <= SPREAD; offset++){
+    int pixel = currentpixel + offset;
+    if (pulse1 == 200){
+        brightness2_pulse = brightness2;
+      }
+    if (pulse1 == 400){
+        brightness3_pulse = brightness3;
+        brightness4_pulse = brightness4;
+      }
+      if (pulse1 > 300 && pulse1 < 600 && pulse1 != -1) {
+        if (pixel < 100){
+          int idx = 99 - pixel;
+          uint8_t extra2 = uint8_t(map(brightness2_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+          CRGB bump2 = CRGB::White;
+          bump2.nscale8(extra2);
+          leds2[idx] += bump2;
+        }
+        if (pixel >= 100 && pixel < 200){
+          int idx = pixel - 100;
+          uint8_t extra3 = uint8_t(map(brightness3_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+          CRGB bump3 = CRGB::White;
+          bump3.nscale8(extra3);
+          leds3[idx] += bump3;
+        }
+        if (pixel >= 100 && pixel < 300){
+          int idx = pixel - 100;
+          uint8_t extra4 = uint8_t(map(brightness4_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+          CRGB bump4 = CRGB::White;
+          bump4.nscale8(extra4);
+          leds4[idx] += bump4;
+        }
+    }
+  }
   FastLED.show();
 }
 
@@ -135,6 +232,7 @@ void updateLEDs() {
 
 void setup() {
   Serial.begin(115200);
+  initEnvelopeLUT(); 
   
   // Set static IP and connect to Wi-Fi
   WiFi.config(staticIP, gateway, subnet);
@@ -226,16 +324,16 @@ void loop() {
     }
 
     // Now assign variables from csv
-    brightness1    = values[0]/2;
-    brightness2    = values[1]/2;
-    brightness3    = values[2]/2;
-    brightness4    = values[3]/2;
+    brightness1    = values[0];
+    brightness2    = values[1];
+    brightness3    = values[2];
+    brightness4    = values[3];
     phaseShift1    = values[4];
     phaseShift2    = values[5];
     entanglement1  = values[6];
     entanglement2  = values[7];
     pulse1         = values[8];
-    pulse2         = values[9];
+    max_brightness = values[9];
     strobe1        = values[10];
     strobe2        = values[11];
 
