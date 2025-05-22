@@ -79,6 +79,45 @@ void initEnvelopeLUT() {
   }
 }
 
+// Function to generate pulse
+void drawPulse(int currentpixel) {
+  for (int offset = -SPREAD; offset <= SPREAD; offset++) {
+    int pixel = currentpixel + offset;
+
+    uint8_t extra1 = uint8_t(map(brightness1, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+    uint8_t extra2 = uint8_t(map(brightness2, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+
+    if (pixel >= 0 && pixel < 200 && currentpixel != -1) {
+      int idx = 200 - pixel;
+      CRGB bump1 = CRGB::White;
+      CRGB bump2 = CRGB::White;
+      bump1.nscale8(extra1);
+      bump2.nscale8(extra2);
+      leds1[idx] += bump1;
+      leds2[idx] += bump2;
+    }
+
+    if (pixel >= 200 && pixel < 400 && currentpixel != -1) {
+      static int brightness3_pulse = brightness3;
+      static int brightness4_pulse = brightness4;
+      if (pixel == 200) {
+        brightness3_pulse = brightness3;
+        brightness4_pulse = brightness4;
+      }
+      uint8_t extra3 = uint8_t(map(brightness3_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+      uint8_t extra4 = uint8_t(map(brightness4_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+      int idx2 = pixel - 200;
+      CRGB bump3 = CRGB::White;
+      CRGB bump4 = CRGB::White;
+      bump3.nscale8(extra3);
+      bump4.nscale8(extra4);
+      leds3[idx2] += bump3;
+      leds4[idx2] += bump4;
+    }
+  }
+}
+
+
 WiFiClient laptopClient;
 WiFiUDP udp;
 
@@ -172,38 +211,10 @@ void updateLEDs() {
     leds3[i].nscale8(finalV);
   }
 
-  int currentpixel = pulse1;
-  for (int offset = -SPREAD; offset <= SPREAD; offset++) {
-    int pixel = currentpixel + offset;
-    uint8_t extra1 = uint8_t(map(brightness1, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-    uint8_t extra2 = uint8_t(map(brightness2, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-    if (pixel >= 0 && pixel < 200 && pulse1 != -1) {
-      int idx = 200 - pixel;  // = 199 - pixel
-      CRGB bump1 = CRGB::White;
-      CRGB bump2 = CRGB::White;
-      bump1.nscale8(extra1);
-      bump2.nscale8(extra2);
-      leds1[idx] += bump1;
-      leds2[idx] += bump2;
-    }
-    if (pixel >= 200 && pixel < 400 && pulse1 != -1) {
-      static int brightness3_pulse = brightness3;
-      static int brightness4_pulse = brightness4;
-      if (pixel == 200){
-        brightness3_pulse = brightness3;
-        brightness4_pulse = brightness4;
-      }
-      uint8_t extra3 = uint8_t(map(brightness3_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-      uint8_t extra4 = uint8_t(map(brightness4_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-      int idx2 = pixel - 200;
-      CRGB bump3 = CRGB::White;
-      CRGB bump4 = CRGB::White;
-      bump3.nscale8(extra3);
-      bump4.nscale8(extra4);
-      leds3[idx2] += bump3;
-      leds4[idx2] += bump4;
-    }
-  }
+  // Generate Pulse
+  drawPixel(pulse1);
+  drawPixel(pulse2);
+
   FastLED.show();
 }
 
@@ -310,8 +321,8 @@ void loop() {
     phaseShift1    = values[4];
     phaseShift2    = values[5];
     entanglement1  = values[6];
-    entanglement2  = values[7];
-    pulse1         = values[8];
+    pulse1         = values[7];
+    pulse2         = values[8];
     max_brightness = values[9];
     strobe1        = values[10];
     strobe2        = values[11];

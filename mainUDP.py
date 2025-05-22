@@ -219,7 +219,7 @@ measured_event = threading.Event()
 total_pulse_time = 12
 strobe_time = 0.5
 
-def calculate_pulse(total_pulse_time, strobe_time):
+def calculate_pulse(total_pulse_time, strobe_time, pulse_id):
     BUSY_THRESHOLD = 0.002
     num_pixels = 1000
     time_per_pixel = total_pulse_time / num_pixels
@@ -230,12 +230,12 @@ def calculate_pulse(total_pulse_time, strobe_time):
         # ——— 1) pulse sweep ———
         for px in range(num_pixels):
             print(px)
-            ESP1.pulse_start = px if px < 0.4 * num_pixels else -1
-            ESP2.pulse_start = px if px < 0.6 * num_pixels else -1
-            ESP3.pulse_start = px if 0.1 * num_pixels < px < 0.6 * num_pixels else -1
-            ESP4.pulse_start = px if 0.1 * num_pixels < px < num_pixels else -1
-            ESP5.pulse_start = px if 0.6 * num_pixels < px < num_pixels else -1
-            ESP6.pulse_start = px if 0.7 * num_pixels < px < num_pixels else -1
+            setattr(ESP1, pulse_id, px if px < 0.4 * num_pixels else -1)
+            setattr(ESP2, pulse_id, px if px < 0.6 * num_pixels else -1)
+            setattr(ESP3, pulse_id, px if 0.1 * num_pixels < px < 0.6 * num_pixels else -1)
+            setattr(ESP4, pulse_id, px if 0.1 * num_pixels < px < num_pixels else -1)
+            setattr(ESP5, pulse_id, px if 0.6 * num_pixels < px < num_pixels else -1)
+            setattr(ESP6, pulse_id, px if 0.7 * num_pixels < px < num_pixels else -1)
             if px == 970:
                 # 1) tell the GUI to sample
                 measured_event.clear()
@@ -251,12 +251,13 @@ def calculate_pulse(total_pulse_time, strobe_time):
             while time.perf_counter() < target:
                 pass
 
-        ESP1.pulse_start = -1
-        ESP2.pulse_start = -1
-        ESP3.pulse_start = -1
-        ESP4.pulse_start = -1
-        ESP5.pulse_start = -1
-        ESP6.pulse_start = -1
+        setattr(ESP1, pulse_id, -1)
+        setattr(ESP2, pulse_id, -1)
+        setattr(ESP3, pulse_id, -1)
+        setattr(ESP4, pulse_id, -1)
+        setattr(ESP5, pulse_id, -1)
+        setattr(ESP6, pulse_id, -1)
+
         # 2) wait (up to 500 ms) for the reply
         if not measured_event.wait(0.3):
             print("⚠️ measurement timeout")
@@ -293,14 +294,18 @@ def calculate_pulse(total_pulse_time, strobe_time):
 udp_socket.bind(("0.0.0.0", udp_port))
 thread1 = threading.Thread(target=handle_esps, args=(udp_socket,),  daemon=True)
 thread2 = threading.Thread(target=calculate_logic, daemon=True)
-thread3 = threading.Thread(target=calculate_pulse, args=(total_pulse_time, strobe_time),  daemon=True)
-thread4 = threading.Thread(target=write_matrix, daemon = True)
-thread5 = threading.Thread(target=listen_for_measured_state, daemon=True)
+thread3 = threading.Thread(target=calculate_pulse, args=(total_pulse_time, strobe_time, "pulse_start1"),  daemon=True)
+thread4 = threading.Thread(target=calculate_pulse, args=(total_pulse_time, strobe_time, "pulse_start2"),  daemon=True)
+#thread5 = threading.Thread(target=calculate_pulse, args=(total_pulse_time, strobe_time, "pulse_start3"),  daemon=True)
+thread6 = threading.Thread(target=write_matrix, daemon = True)
+thread7 = threading.Thread(target=listen_for_measured_state, daemon=True)
 thread1.start()
 thread2.start()
 thread3.start()
 thread4.start()
-thread5.start()
+#thread5.start()
+thread6.start()
+thread7.start()
 
 # Keep the main thread alive.
 try:

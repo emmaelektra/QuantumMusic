@@ -30,12 +30,12 @@ class ESPLED:
         self.Eout_1 = 0
         self.Eout_2 = 0
         self.entanglement = 0
-        self.entanglement2 = 0
+        self.pulse_start1 = None
         self.previous_entanglement1 = 0
         self.previous_entanglement2 = 0
         #self.pulse1 = None
         #self.pulse2 = None
-        self.pulse_start = None
+        self.pulse_start2 = None
         self.max_brightness = 0
         self.strobe1 = None
         self.strobe2 = None
@@ -87,8 +87,8 @@ class ESPLED:
             self.phaseVal1,
             self.phaseVal2,
             self.entanglement,
-            self.entanglement2,
-            self.pulse_start,
+            self.pulse_start1,
+            self.pulse_start2,
             self.max_brightness,
             self.strobe1,
             self.strobe2
