@@ -184,7 +184,7 @@ void updateLEDs() {
     uint8_t extra1 = uint8_t(map(brightness1, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
     uint8_t extra2 = uint8_t(map(brightness2, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
     if (pixel < 600 && pulse1 != -1) {
-      if (currentpixel < 200 && pulse1 != -1){
+      if (pixel < 200 && pulse1 != -1){
         int idx = 200-pixel;
         CRGB bump1 = CRGB::White;
         CRGB bump2 = CRGB::White;
