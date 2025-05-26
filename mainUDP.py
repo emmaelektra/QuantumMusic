@@ -182,7 +182,6 @@ E4_0 = 0
 def calculate_logic():
     """Calculates brightness values based on received ESP data."""
     while True:
-        print(ESP1.response_data)
         try:
             E1_1 = ESP1.Eout_1
             E2_1 = ESP1.Eout_2
@@ -301,7 +300,7 @@ def calculate_pulse(total_pulse_time, strobe_time, pulse_id):
         print("Strobes CLEARED", ESP4.strobe1, ESP6.strobe1, ESP6.strobe2, ESP5.strobe2)
 
         # ——— 5) random inter-cycle delay ———
-        delay = random.uniform(0, 10)
+        delay = random.uniform(0, 20)
         print(f"Waiting {delay:.2f}s for next cycle")
         time.sleep(delay)
 
