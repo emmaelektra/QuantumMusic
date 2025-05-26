@@ -11,14 +11,6 @@ import matplotlib.font_manager as fm
 from pythonosc import udp_client
 
 # --------------------- Font Setup ---------------------
-minion_path = '/Users/emmasokoll/Library/Fonts/MinionPro-Regular.otf'
-fm.fontManager.addfont(minion_path)
-minion_prop = fm.FontProperties(fname=minion_path)
-plt.rcParams.update({
-    'font.family': minion_prop.get_name(),
-    'mathtext.fontset': 'custom',
-    'mathtext.rm': minion_prop.get_name(),
-})
 
 # --------------------- Pygame Setup ---------------------
 pygame.init()
@@ -28,7 +20,7 @@ pygame.display.set_caption("Quantum Experiment GUI")
 white = (255, 255, 255)
 black = (0, 0, 0)
 gray = (200, 200, 200)
-font = pygame.font.Font(minion_path, 36)
+font = pygame.font.SysFont("Arial",36)
 
 # --------------------- Experiment Setup ---------------------
 num_channels = 4
