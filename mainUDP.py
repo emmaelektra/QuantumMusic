@@ -182,6 +182,7 @@ E4_0 = 0
 def calculate_logic():
     """Calculates brightness values based on received ESP data."""
     while True:
+        print(ESP6.response_data)
         try:
             E1_1 = ESP1.Eout_1
             E2_1 = ESP1.Eout_2
@@ -212,12 +213,17 @@ def calculate_logic():
             # (Additional logic for other ESPs can be enabled as needed)
 
             # Entanglement helper function
-            def is_entangled(a_intensity, b_intensity, c_intensity, pot_value, pot_range=(1850, 2250)):
+            def is_entangled(a_intensity, b_intensity, c_intensity, pot_value, pot_range=(1650, 2850)):
                 return a_intensity > 0 and b_intensity > 0 and c_intensity > 0 and pot_range[0] <= pot_value <= pot_range[1]
 
             ESP3.entanglement = int(is_entangled(ESP1.output_intensity2, ESP2.output_intensity1, 1, ESP3.pot_value))
             ESP4.entanglement = int(is_entangled(ESP1.output_intensity1, ESP3.output_intensity1, ESP2.output_intensity1, ESP4.pot_value))
-            ESP5.entanglement = int(is_entangled(ESP3.output_intensity2, ESP2.output_intensity2, ESP1.output_intensity2, ESP4.pot_value))
+            if ESP4.entanglement == 1 and ESP3.entanglement == 1:
+                ESP4.entanglement = 3
+            elif ESP3.entanglement == 1 and ESP4.entanglement == 0:
+                ESP4.entanglement = 2
+            ESP5.entanglement = int(is_entangled(ESP3.output_intensity2, ESP2.output_intensity2, ESP1.output_intensity2, ESP5.pot_value))
+            #print(f'3: {ESP3.output_intensity2} 2: {ESP2.output_intensity2} 1: {ESP1.output_intensity2} pot: {ESP}')
             ESP6.entanglement = int(is_entangled(ESP4.output_intensity2, ESP5.output_intensity1, 1, ESP6.pot_value))
 
             time.sleep(0.001)  # Prevent excessive CPU usage
@@ -239,7 +245,7 @@ def calculate_pulse(total_pulse_time, strobe_time, pulse_id):
 
         # ——— 1) pulse sweep ———
         for px in range(num_pixels):
-            print(f'{px} {pulse_id}')
+            #print(f'{px} {pulse_id}')
             setattr(ESP1, pulse_id, px if px < 0.4 * num_pixels else -1)
             setattr(ESP2, pulse_id, px if px < 0.6 * num_pixels else -1)
             setattr(ESP3, pulse_id, px if 0.1 * num_pixels < px < 0.6 * num_pixels else -1)
@@ -295,7 +301,7 @@ def calculate_pulse(total_pulse_time, strobe_time, pulse_id):
         print("Strobes CLEARED", ESP4.strobe1, ESP6.strobe1, ESP6.strobe2, ESP5.strobe2)
 
         # ——— 5) random inter-cycle delay ———
-        delay = random.uniform(0, 4)
+        delay = random.uniform(0, 10)
         print(f"Waiting {delay:.2f}s for next cycle")
         time.sleep(delay)
 
