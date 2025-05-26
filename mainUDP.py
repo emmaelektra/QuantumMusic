@@ -210,6 +210,16 @@ def calculate_logic():
             ESP5.get_output(E3_2, E4_2, max_brightness)
             ESP6.get_output(E2_3, E3_3, max_brightness)
             # (Additional logic for other ESPs can be enabled as needed)
+
+            # Entanglement helper function
+            def is_entangled(a_intensity, b_intensity, pot_value, pot_range=(1850, 2250)):
+                return a_intensity > 0 and b_intensity > 0 and pot_range[0] <= pot_value <= pot_range[1]
+
+            ESP3.entanglement = int(is_entangled(ESP1.output_intensity2, ESP2.output_intensity1, ESP3.pot_value))
+            ESP4.entanglement = int(is_entangled(ESP1.output_intensity1, ESP3.output_intensity1, ESP4.pot_value))
+            ESP5.entanglement = int(is_entangled(ESP3.output_intensity2, ESP2.output_intensity2, ESP4.pot_value))
+            ESP6.entanglement = int(is_entangled(ESP4.output_intensity2, ESP5.output_intensity1, ESP6.pot_value))
+
             time.sleep(0.001)  # Prevent excessive CPU usage
         except Exception as e:
             print(f"❌ Error in logic calculation: {e}")
@@ -296,14 +306,14 @@ thread1 = threading.Thread(target=handle_esps, args=(udp_socket,),  daemon=True)
 thread2 = threading.Thread(target=calculate_logic, daemon=True)
 thread3 = threading.Thread(target=calculate_pulse, args=(total_pulse_time, strobe_time, "pulse_start1"),  daemon=True)
 thread4 = threading.Thread(target=calculate_pulse, args=(total_pulse_time, strobe_time, "pulse_start2"),  daemon=True)
-#thread5 = threading.Thread(target=calculate_pulse, args=(total_pulse_time, strobe_time, "pulse_start3"),  daemon=True)
+thread5 = threading.Thread(target=calculate_pulse, args=(total_pulse_time, strobe_time, "pulse_start3"),  daemon=True)
 thread6 = threading.Thread(target=write_matrix, daemon = True)
 thread7 = threading.Thread(target=listen_for_measured_state, daemon=True)
 thread1.start()
 thread2.start()
 thread3.start()
 thread4.start()
-#thread5.start()
+thread5.start()
 thread6.start()
 thread7.start()
 

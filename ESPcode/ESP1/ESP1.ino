@@ -43,6 +43,8 @@ float phaseShift2 = 0;
 float entanglement1 = 0;
 float entanglement2  = 0;
 int pulse1 = 0;
+int pulse2 = 0;
+int pulse3 = 0;
 int max_brightness = 0;
 uint8_t strobe1 = 0;
 uint8_t strobe2 = 0;
@@ -50,6 +52,9 @@ uint8_t strobe2 = 0;
 int p1 = -1;
 int p2 = -1;
 int p3 = -1;
+
+// Offset of second photon when entangled in pixels
+int entanglement_offset = 30;
 
 static int lastPotValue = -1;
 
@@ -129,56 +134,14 @@ void updateLEDs() {
   for (int i = 0; i < NUM_LEDS2; i++) {
     leds2[i] = CRGB::White;
     leds2[i].nscale8(brightness2);
-  }
-  // Entanglement on strips 3 and 4
-  int sparkleBoost = map(entanglement1, 0, 15, 0, 255);
-  fadeToBlackBy(leds3, NUM_LEDS3, thisfade);
-  fadeToBlackBy(leds4, NUM_LEDS4, thisfade);
-
-  // Blending amount: 0 = full glow, 1 = full twinkle
-  float fadeAmount = constrain(entanglement1 / 20.0, 0.0, 1.0);  // normalized
-  fadeAmount = pow(fadeAmount, 1.5);  // optional: softer entry
-
-  // Twinkle pattern buffer
-  CRGB twinkleBuffer3[NUM_LEDS3];
-  CRGB twinkleBuffer4[NUM_LEDS4];
-  fill_solid(twinkleBuffer3, NUM_LEDS3, CRGB::Black);
-  fill_solid(twinkleBuffer4, NUM_LEDS4, CRGB::Black);
-
-  // Twinkle logic based on entanglement
-  int maxSparkles3 = map(entanglement1, 1, 15, NUM_LEDS3 / 1.5, NUM_LEDS3 / 30);
-  int maxSparkles4 = map(entanglement1, 1, 15, NUM_LEDS4 / 1.5, NUM_LEDS4 / 30);
-  int twinkleChance = map(entanglement1, 1, 15, 1, 20);
-
-  for (int i = 0; i < maxSparkles3; i++) {
-    if (random8() < twinkleChance) {
-      int pos = random16(NUM_LEDS3);
-      twinkleBuffer3[pos] = CRGB::White;
-      twinkleBuffer3[pos].nscale8(sparkleBoost);  // full entanglement = full sparkle
-    }
-  }
-
-  /// Blend twinkleBuffer with steady white background
+  } 
   for (int i = 0; i < NUM_LEDS3; i++) {
-    CRGB glowColor = CRGB::White;
-    glowColor.nscale8(brightness3);
-    leds3[i] = glowColor;  
-    leds3[i] += twinkleBuffer3[i];  
+    leds2[i] = CRGB::White;
+    leds2[i].nscale8(brightness3);
   }
-
-    for (int i = 0; i < maxSparkles4; i++) {
-    if (random8() < twinkleChance) {
-      int pos = random16(NUM_LEDS4);
-      twinkleBuffer4[pos] = CRGB::White;
-      twinkleBuffer4[pos].nscale8(sparkleBoost);  // full entanglement = full sparkle
-    }
-  }
-
   for (int i = 0; i < NUM_LEDS4; i++) {
-    CRGB glowColor = CRGB::White;
-    glowColor.nscale8(brightness4);
-    leds4[i] = glowColor;
-    leds4[i] += twinkleBuffer4[i];
+    leds2[i] = CRGB::White;
+    leds2[i].nscale8(brightness4);
   }
   
   // Static end‐cap phaser on strip 3
@@ -212,9 +175,14 @@ void updateLEDs() {
   }
 
   // Generate Pulse
-  drawPixel(pulse1);
-  drawPixel(pulse2);
-
+  drawPulse(pulse1);
+  drawPulse(pulse2);
+  drawPulse(pulse3);
+  if (entanglement1 == 1){
+    drawPulse(pulse1 + entanglement_offset);
+    drawPulse(pulse2 + entanglement_offset);
+    drawPulse(pulse3 + entanglement_offset);
+  }
   FastLED.show();
 }
 
@@ -294,7 +262,7 @@ void loop() {
 
     // Split CSV into tokens
     int index = 0;
-    float values[12];  // Adjust if you add more fields
+    float values[13];  // Adjust if you add more fields
 
     int lastComma = -1;
     for (int i = 0; i < response.length(); i++) {
@@ -323,9 +291,10 @@ void loop() {
     entanglement1  = values[6];
     pulse1         = values[7];
     pulse2         = values[8];
-    max_brightness = values[9];
-    strobe1        = values[10];
-    strobe2        = values[11];
+    pulse3         = values[9];
+    max_brightness = values[10];
+    strobe1        = values[11];
+    strobe2        = values[12];
     updateLEDs();
   }
 }
