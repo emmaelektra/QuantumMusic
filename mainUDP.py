@@ -239,7 +239,7 @@ def calculate_pulse(total_pulse_time, strobe_time, pulse_id):
 
         # ——— 1) pulse sweep ———
         for px in range(num_pixels):
-            print(px)
+            print(f'{px} {pulse_id}')
             setattr(ESP1, pulse_id, px if px < 0.4 * num_pixels else -1)
             setattr(ESP2, pulse_id, px if px < 0.6 * num_pixels else -1)
             setattr(ESP3, pulse_id, px if 0.1 * num_pixels < px < 0.6 * num_pixels else -1)
