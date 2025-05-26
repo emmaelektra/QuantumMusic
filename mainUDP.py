@@ -212,13 +212,13 @@ def calculate_logic():
             # (Additional logic for other ESPs can be enabled as needed)
 
             # Entanglement helper function
-            def is_entangled(a_intensity, b_intensity, pot_value, pot_range=(1850, 2250)):
-                return a_intensity > 0 and b_intensity > 0 and pot_range[0] <= pot_value <= pot_range[1]
+            def is_entangled(a_intensity, b_intensity, c_intensity, pot_value, pot_range=(1850, 2250)):
+                return a_intensity > 0 and b_intensity > 0 and c_intensity > 0 and pot_range[0] <= pot_value <= pot_range[1]
 
-            ESP3.entanglement = int(is_entangled(ESP1.output_intensity2, ESP2.output_intensity1, ESP3.pot_value))
-            ESP4.entanglement = int(is_entangled(ESP1.output_intensity1, ESP3.output_intensity1, ESP4.pot_value))
-            ESP5.entanglement = int(is_entangled(ESP3.output_intensity2, ESP2.output_intensity2, ESP4.pot_value))
-            ESP6.entanglement = int(is_entangled(ESP4.output_intensity2, ESP5.output_intensity1, ESP6.pot_value))
+            ESP3.entanglement = int(is_entangled(ESP1.output_intensity2, ESP2.output_intensity1, 1, ESP3.pot_value))
+            ESP4.entanglement = int(is_entangled(ESP1.output_intensity1, ESP3.output_intensity1, ESP2.output_intensity1, ESP4.pot_value))
+            ESP5.entanglement = int(is_entangled(ESP3.output_intensity2, ESP2.output_intensity2, ESP1.output_intensity2, ESP4.pot_value))
+            ESP6.entanglement = int(is_entangled(ESP4.output_intensity2, ESP5.output_intensity1, 1, ESP6.pot_value))
 
             time.sleep(0.001)  # Prevent excessive CPU usage
         except Exception as e:

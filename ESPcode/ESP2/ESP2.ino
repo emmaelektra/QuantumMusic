@@ -53,6 +53,9 @@ int potValue = -1;
 int psValue1 = -1;
 int psValue2 = -1;
 
+// Offset of second photon when entangled in pixels
+int entanglement_offset = 30;
+
 static int lastPotValue = -1;
 
 // Global variables to track last update
@@ -81,104 +84,7 @@ void initEnvelopeLUT() {
   }
 }
 
-WiFiClient laptopClient;
-WiFiUDP udp;
-
-void updateLEDs() {
-  for (int i = 0; i < NUM_LEDS1; i++) {
-    leds1[i] = CRGB::White;
-    leds1[i].nscale8(brightness1);
-  }
-  for (int i = 0; i < NUM_LEDS2; i++) {
-    leds2[i] = CRGB::White;
-    leds2[i].nscale8(brightness2);
-  }
-  /*
-  // Entanglement on strips 3 and 4
-  int sparkleBoost = map(entanglement1, 0, 15, 0, 255);
-  fadeToBlackBy(leds3, NUM_LEDS3, thisfade);
-  fadeToBlackBy(leds4, NUM_LEDS4, thisfade);
-
-  // Blending amount: 0 = full glow, 1 = full twinkle
-  float fadeAmount = constrain(entanglement1 / 20.0, 0.0, 1.0);  // normalized
-  fadeAmount = pow(fadeAmount, 1.5);  // optional: softer entry
-
-  // Twinkle pattern buffer
-  CRGB twinkleBuffer3[NUM_LEDS3];
-  CRGB twinkleBuffer4[NUM_LEDS4];
-  fill_solid(twinkleBuffer3, NUM_LEDS3, CRGB::Black);
-  fill_solid(twinkleBuffer4, NUM_LEDS4, CRGB::Black);
-
-  // Twinkle logic based on entanglement
-  int maxSparkles3 = map(entanglement1, 1, 15, NUM_LEDS3 / 1.5, NUM_LEDS3 / 30);
-  int maxSparkles4 = map(entanglement1, 1, 15, NUM_LEDS4 / 1.5, NUM_LEDS4 / 30);
-  int twinkleChance = map(entanglement1, 1, 15, 1, 20);
-
-  for (int i = 0; i < maxSparkles3; i++) {
-    if (random8() < twinkleChance) {
-      int pos = random16(NUM_LEDS3);
-      twinkleBuffer3[pos] = CRGB::White;
-      twinkleBuffer3[pos].nscale8(sparkleBoost);  // full entanglement = full sparkle
-    }
-  }
-
-    for (int i = 0; i < maxSparkles4; i++) {
-    if (random8() < twinkleChance) {
-      int pos = random16(NUM_LEDS4);
-      twinkleBuffer4[pos] = CRGB::White;
-      twinkleBuffer4[pos].nscale8(sparkleBoost);  // full entanglement = full sparkle
-    }
-  }
-  */
-  // BACHGROUND BRIGHTNESS //
-  /*
-  for (int i = 0; i < NUM_LEDS3; i++) {
-    CRGB glowColor = CRGB::White;
-    glowColor.nscale8(brightness3);
-    leds3[i] = glowColor;  
-  }
-  */
-  
-  for (int i = 0; i < NUM_LEDS4; i++) {
-    CRGB glowColor = CRGB::White;
-    glowColor.nscale8(brightness4);
-    leds4[i] = glowColor;
-  }
-
-  // Static end‐cap phaser on strip 3
-  constexpr int PHASER_LEN3 = 40;   // how many LEDs get the wave
-  constexpr int FADE_LEN3   = 5;    // how many LEDs to cross-fade
-
-  for (int i = 0; i < NUM_LEDS3; i++) {
-    uint8_t glow = brightness3;
-    uint8_t finalV;
-
-    if (i < NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3)) {
-      // 1) Far from the end → solid glow
-      finalV = glow;
-
-    } else if (i < NUM_LEDS3 - PHASER_LEN3) {
-      // 2) Fade region
-      float t = float(i - (NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3))) / FADE_LEN3;
-      int relPos = i - (NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3));
-      // static sine lobe: one full wave over PHASER_LEN3 LEDs
-      int ph = (brightness3 * sin8((relPos + 0) * 18)) / 255;
-      finalV = uint8_t(glow * t + ph * (1.0f - t));
-
-    } else {
-      // 3) Full static phaser region
-      int relPos = i - (NUM_LEDS3 - PHASER_LEN3);
-      finalV = (brightness3 * sin8((relPos + 0) * 18)) / 255;
-    }
-
-    leds3[i] = CRGB::White;
-    leds3[i].nscale8(finalV);
-  }
-
-
-  // PULSE //
-
-  int currentpixel = pulse1;
+void drawPulse(int currentpixel){
   for (int offset = -SPREAD; offset <= SPREAD; offset++){
     int pixel = currentpixel + offset;
     uint8_t extra1 = uint8_t(map(brightness1, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
@@ -224,6 +130,67 @@ void updateLEDs() {
         leds4[idx] += bump4;
       }
     }
+  }
+}
+
+WiFiClient laptopClient;
+WiFiUDP udp;
+
+void updateLEDs() {
+  for (int i = 0; i < NUM_LEDS1; i++) {
+    leds1[i] = CRGB::White;
+    leds1[i].nscale8(brightness1);
+  }
+  for (int i = 0; i < NUM_LEDS2; i++) {
+    leds2[i] = CRGB::White;
+    leds2[i].nscale8(brightness2);
+  }
+  
+  for (int i = 0; i < NUM_LEDS4; i++) {
+    CRGB glowColor = CRGB::White;
+    glowColor.nscale8(brightness4);
+    leds4[i] = glowColor;
+  }
+
+  // Static end‐cap phaser on strip 3
+  constexpr int PHASER_LEN3 = 40;   // how many LEDs get the wave
+  constexpr int FADE_LEN3   = 5;    // how many LEDs to cross-fade
+
+  for (int i = 0; i < NUM_LEDS3; i++) {
+    uint8_t glow = brightness3;
+    uint8_t finalV;
+
+    if (i < NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3)) {
+      // 1) Far from the end → solid glow
+      finalV = glow;
+
+    } else if (i < NUM_LEDS3 - PHASER_LEN3) {
+      // 2) Fade region
+      float t = float(i - (NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3))) / FADE_LEN3;
+      int relPos = i - (NUM_LEDS3 - (PHASER_LEN3 + FADE_LEN3));
+      // static sine lobe: one full wave over PHASER_LEN3 LEDs
+      int ph = (brightness3 * sin8((relPos + 0) * 18)) / 255;
+      finalV = uint8_t(glow * t + ph * (1.0f - t));
+
+    } else {
+      // 3) Full static phaser region
+      int relPos = i - (NUM_LEDS3 - PHASER_LEN3);
+      finalV = (brightness3 * sin8((relPos + 0) * 18)) / 255;
+    }
+
+    leds3[i] = CRGB::White;
+    leds3[i].nscale8(finalV);
+  }
+
+
+  // Generate Pulse
+  drawPulse(pulse1);
+  drawPulse(pulse2);
+  drawPulse(pulse3);
+  if (entanglement1 == 1){
+    drawPulse(pulse1 + entanglement_offset);
+    drawPulse(pulse2 + entanglement_offset);
+    drawPulse(pulse3 + entanglement_offset);
   }
   FastLED.show();
 }
@@ -302,7 +269,7 @@ void loop() {
 
     // Split CSV into tokens
     int index = 0;
-    float values[12];  // Adjust if you add more fields
+    float values[13];  // Adjust if you add more fields
 
     int lastComma = -1;
     for (int i = 0; i < response.length(); i++) {
@@ -321,7 +288,7 @@ void loop() {
       }
     }
 
-    // Now assign variables from csv
+    // Now assign to your variables
     brightness1    = values[0];
     brightness2    = values[1];
     brightness3    = values[2];
@@ -329,11 +296,12 @@ void loop() {
     phaseShift1    = values[4];
     phaseShift2    = values[5];
     entanglement1  = values[6];
-    entanglement2  = values[7];
-    pulse1         = values[8];
-    max_brightness = values[9];
-    strobe1        = values[10];
-    strobe2        = values[11];
+    pulse1         = values[7];
+    pulse2         = values[8];
+    pulse3         = values[9];
+    max_brightness = values[10];
+    strobe1        = values[11];
+    strobe2        = values[12];
     updateLEDs();
   }
 }
