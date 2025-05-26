@@ -44,6 +44,8 @@ float phaseShift2 = 0;
 float entanglement1 = 0;
 float entanglement2  = 0;
 int pulse1 = 0;
+int pulse2 = 0;
+int pulse3 = 0;
 uint8_t max_brightness = 0;
 uint8_t strobe1 = 0;
 uint8_t strobe2 = 0;
@@ -52,9 +54,6 @@ uint8_t strobe2 = 0;
 int potValue = -1;
 int psValue1 = -1;
 int psValue2 = -1;
-
-// Offset of second photon when entangled in pixels
-int entanglement_offset = 30;
 
 static int lastPotValue = -1;
 
@@ -84,13 +83,13 @@ void initEnvelopeLUT() {
   }
 }
 
-void drawPulse(int currentpixel){
+void drawPulse(int currentpixel) {
   for (int offset = -SPREAD; offset <= SPREAD; offset++){
     int pixel = currentpixel + offset;
     uint8_t extra1 = uint8_t(map(brightness1, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
     uint8_t extra2 = uint8_t(map(brightness2, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-    if (pixel < 600 && pulse1 != -1) {
-      if (currentpixel < 200 && pulse1 != -1){
+    if (pixel < 600) {
+      if (pixel < 200){
         int idx = 200-pixel;
         CRGB bump1 = CRGB::White;
         CRGB bump2 = CRGB::White;
@@ -99,7 +98,7 @@ void drawPulse(int currentpixel){
         leds1[idx] += bump1;
         leds2[idx] += bump2;  
       }
-      if (pixel >= 200 && pixel < 300 && pulse1 != -1){
+      if (pixel >= 200 && pixel < 300){
         static int brightness3_pulse = brightness3;
         static int brightness4_pulse = brightness4;
         if (pixel == 200){
@@ -118,7 +117,7 @@ void drawPulse(int currentpixel){
         leds4[idx] += bump4;
         
       }
-      if (pixel >= 300 && pixel < 600 && pulse1 != -1){
+      if (pixel >= 300 && pixel < 600){
         static int brightness4_pulse = brightness4;
         if (pixel == 300){
           brightness4_pulse = brightness4;
@@ -132,7 +131,6 @@ void drawPulse(int currentpixel){
     }
   }
 }
-
 WiFiClient laptopClient;
 WiFiUDP udp;
 
@@ -145,6 +143,51 @@ void updateLEDs() {
     leds2[i] = CRGB::White;
     leds2[i].nscale8(brightness2);
   }
+  /*
+  // Entanglement on strips 3 and 4
+  int sparkleBoost = map(entanglement1, 0, 15, 0, 255);
+  fadeToBlackBy(leds3, NUM_LEDS3, thisfade);
+  fadeToBlackBy(leds4, NUM_LEDS4, thisfade);
+
+  // Blending amount: 0 = full glow, 1 = full twinkle
+  float fadeAmount = constrain(entanglement1 / 20.0, 0.0, 1.0);  // normalized
+  fadeAmount = pow(fadeAmount, 1.5);  // optional: softer entry
+
+  // Twinkle pattern buffer
+  CRGB twinkleBuffer3[NUM_LEDS3];
+  CRGB twinkleBuffer4[NUM_LEDS4];
+  fill_solid(twinkleBuffer3, NUM_LEDS3, CRGB::Black);
+  fill_solid(twinkleBuffer4, NUM_LEDS4, CRGB::Black);
+
+  // Twinkle logic based on entanglement
+  int maxSparkles3 = map(entanglement1, 1, 15, NUM_LEDS3 / 1.5, NUM_LEDS3 / 30);
+  int maxSparkles4 = map(entanglement1, 1, 15, NUM_LEDS4 / 1.5, NUM_LEDS4 / 30);
+  int twinkleChance = map(entanglement1, 1, 15, 1, 20);
+
+  for (int i = 0; i < maxSparkles3; i++) {
+    if (random8() < twinkleChance) {
+      int pos = random16(NUM_LEDS3);
+      twinkleBuffer3[pos] = CRGB::White;
+      twinkleBuffer3[pos].nscale8(sparkleBoost);  // full entanglement = full sparkle
+    }
+  }
+
+    for (int i = 0; i < maxSparkles4; i++) {
+    if (random8() < twinkleChance) {
+      int pos = random16(NUM_LEDS4);
+      twinkleBuffer4[pos] = CRGB::White;
+      twinkleBuffer4[pos].nscale8(sparkleBoost);  // full entanglement = full sparkle
+    }
+  }
+  */
+  // BACHGROUND BRIGHTNESS //
+  /*
+  for (int i = 0; i < NUM_LEDS3; i++) {
+    CRGB glowColor = CRGB::White;
+    glowColor.nscale8(brightness3);
+    leds3[i] = glowColor;  
+  }
+  */
   
   for (int i = 0; i < NUM_LEDS4; i++) {
     CRGB glowColor = CRGB::White;
@@ -181,16 +224,14 @@ void updateLEDs() {
     leds3[i] = CRGB::White;
     leds3[i].nscale8(finalV);
   }
-
-
-  // Generate Pulse
-  drawPulse(pulse1);
-  drawPulse(pulse2);
-  drawPulse(pulse3);
-  if (entanglement1 == 1){
-    drawPulse(pulse1 + entanglement_offset);
-    drawPulse(pulse2 + entanglement_offset);
-    drawPulse(pulse3 + entanglement_offset);
+  if (pulse1 != -1){
+    drawPulse(pulse1);
+  }
+  if (pulse2 != -1){
+    drawPulse(pulse2);
+  }
+  if (pulse3 != -1){
+    drawPulse(pulse3);
   }
   FastLED.show();
 }
@@ -284,11 +325,11 @@ void loop() {
         }
         lastComma = i;
         index++;
-        if (index >= 12) break;  // Safety check
+        if (index >= 13) break;  // Safety check
       }
     }
 
-    // Now assign to your variables
+      // Now assign to your variables
     brightness1    = values[0];
     brightness2    = values[1];
     brightness3    = values[2];

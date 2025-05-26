@@ -53,9 +53,6 @@ int p1 = -1;
 int p2 = -1;
 int p3 = -1;
 
-// Offset of second photon when entangled in pixels
-int entanglement_offset = 30;
-
 static int lastPotValue = -1;
 
 // Global variable to track last update
@@ -84,44 +81,39 @@ void initEnvelopeLUT() {
   }
 }
 
-// Function to generate pulse
 void drawPulse(int currentpixel) {
   for (int offset = -SPREAD; offset <= SPREAD; offset++) {
-    int pixel = currentpixel + offset;
-
-    uint8_t extra1 = uint8_t(map(brightness1, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-    uint8_t extra2 = uint8_t(map(brightness2, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-
-    if (pixel >= 0 && pixel < 200 && currentpixel != -1) {
-      int idx = 200 - pixel;
-      CRGB bump1 = CRGB::White;
-      CRGB bump2 = CRGB::White;
-      bump1.nscale8(extra1);
-      bump2.nscale8(extra2);
-      leds1[idx] += bump1;
-      leds2[idx] += bump2;
-    }
-
-    if (pixel >= 200 && pixel < 400 && currentpixel != -1) {
-      static int brightness3_pulse = brightness3;
-      static int brightness4_pulse = brightness4;
-      if (pixel == 200) {
-        brightness3_pulse = brightness3;
-        brightness4_pulse = brightness4;
+      int pixel = currentpixel + offset;
+      uint8_t extra1 = uint8_t(map(brightness1, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+      uint8_t extra2 = uint8_t(map(brightness2, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+      if (pixel >= 0 && pixel < 200) {
+        int idx = 200 - pixel;  // = 199 - pixel
+        CRGB bump1 = CRGB::White;
+        CRGB bump2 = CRGB::White;
+        bump1.nscale8(extra1);
+        bump2.nscale8(extra2);
+        leds1[idx] += bump1;
+        leds2[idx] += bump2;
       }
-      uint8_t extra3 = uint8_t(map(brightness3_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-      uint8_t extra4 = uint8_t(map(brightness4_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
-      int idx2 = pixel - 200;
-      CRGB bump3 = CRGB::White;
-      CRGB bump4 = CRGB::White;
-      bump3.nscale8(extra3);
-      bump4.nscale8(extra4);
-      leds3[idx2] += bump3;
-      leds4[idx2] += bump4;
+      if (pixel >= 200 && pixel < 400) {
+        static int brightness3_pulse = brightness3;
+        static int brightness4_pulse = brightness4;
+        if (pixel == 200){
+          brightness3_pulse = brightness3;
+          brightness4_pulse = brightness4;
+        }
+        uint8_t extra3 = uint8_t(map(brightness3_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+        uint8_t extra4 = uint8_t(map(brightness4_pulse, 0, max_brightness, 0, 255) * envelopeLUT[offset + SPREAD]);
+        int idx2 = pixel - 200;
+        CRGB bump3 = CRGB::White;
+        CRGB bump4 = CRGB::White;
+        bump3.nscale8(extra3);
+        bump4.nscale8(extra4);
+        leds3[idx2] += bump3;
+        leds4[idx2] += bump4;
+      }
     }
-  }
 }
-
 
 WiFiClient laptopClient;
 WiFiUDP udp;
@@ -134,14 +126,14 @@ void updateLEDs() {
   for (int i = 0; i < NUM_LEDS2; i++) {
     leds2[i] = CRGB::White;
     leds2[i].nscale8(brightness2);
-  } 
+  }
   for (int i = 0; i < NUM_LEDS3; i++) {
-    leds2[i] = CRGB::White;
-    leds2[i].nscale8(brightness3);
+    leds3[i] = CRGB::White;
+    leds3[i].nscale8(brightness3);
   }
   for (int i = 0; i < NUM_LEDS4; i++) {
-    leds2[i] = CRGB::White;
-    leds2[i].nscale8(brightness4);
+    leds4[i] = CRGB::White;
+    leds4[i].nscale8(brightness4);
   }
   
   // Static end‐cap phaser on strip 3
@@ -173,15 +165,15 @@ void updateLEDs() {
     leds3[i] = CRGB::White;
     leds3[i].nscale8(finalV);
   }
-
-  // Generate Pulse
-  drawPulse(pulse1);
-  drawPulse(pulse2);
-  drawPulse(pulse3);
-  if (entanglement1 == 1){
-    drawPulse(pulse1 + entanglement_offset);
-    drawPulse(pulse2 + entanglement_offset);
-    drawPulse(pulse3 + entanglement_offset);
+  //Pulse
+  if (pulse1 != -1){
+    drawPulse(pulse1);
+  }
+  if (pulse2 != -1){
+    drawPulse(pulse2);
+  }
+  if (pulse3 != -1){
+    drawPulse(pulse3);
   }
   FastLED.show();
 }
@@ -277,7 +269,7 @@ void loop() {
         }
         lastComma = i;
         index++;
-        if (index >= 12) break;  // Safety check
+        if (index >= 13) break;  // Safety check
       }
     }
 

@@ -182,7 +182,7 @@ E4_0 = 0
 def calculate_logic():
     """Calculates brightness values based on received ESP data."""
     while True:
-        print(ESP6.response_data)
+        print(ESP1.response_data)
         try:
             E1_1 = ESP1.Eout_1
             E2_1 = ESP1.Eout_2
