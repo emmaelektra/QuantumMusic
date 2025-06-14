@@ -3,7 +3,7 @@
 #include <FastLED.h>
 #include <ArduinoOTA.h>
 
-#define SSID "BosonSamplerWiFi"
+#define SSID "GalaxyS10agn43"
 #define PASSWORD "QuantumTech2025"
 #define LAPTOP_IP "192.168.4.2"  // Laptop's static IP
 
